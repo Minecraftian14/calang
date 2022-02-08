@@ -172,7 +172,7 @@ static Map<String, Program> PROGRAMS = new HashMap<>();
 static Program getProgram(String programName) {
   if(! PROGRAMS.containsKey(programName)) {
     try {
-      var lines = Files.readAllLines(Paths.get("%s.dsl".formatted(programName)));
+      var lines = Files.readAllLines(Paths.get("%s.calang".formatted(programName)));
       return parse(lines.stream().filter(l -> !l.isBlank()).toList());
     } catch(IOException e) { throw new UncheckedIOException(e); }
   } assert PROGRAMS.containsKey(programName);

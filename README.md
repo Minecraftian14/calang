@@ -141,7 +141,7 @@ BEGIN.
   PRINT Size of $X is $Y
 ```
 
-Program naming is done by checking files in the system, with extension `.dsl`.
+Program naming is done by checking files in the system, with extension `.calang`.
 
 **Note**: File resolution strategy is still a working progress and this specification *will* change.
 

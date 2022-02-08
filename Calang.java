@@ -11,16 +11,33 @@ public class Calang {
 
 public static Map<String, Object> run(String programName, Map<String, ?> arguments) { return run(getProgram(programName), arguments); }
 
+@SuppressWarnings("unchecked")
+public static <T extends TypedValue<T, ?>> void addOperator(Class<T> clz, String operatorName, Operator<T> operator) {
+  if (OPERATORS.containsKey(clz)) {
+    var ops = (Map<String, Operator>) OPERATORS.get(clz);
+    ops.put(operatorName, operator);
+  } else {
+    OPERATORS.put(clz, new HashMap<>());
+    addOperator(clz, operatorName, operator);
+  }
+}
+@SuppressWarnings("unchecked")
+private static <T extends TypedValue<T, ?>> Map<String, Operator<T>> getOperators(Class<T> clz) {
+  var operators = (Map<String, Operator<T>>) OPERATORS.get(clz);
+  return operators == null ? Collections.emptyMap() : operators;
+}
+
 /******************************************************************** */
 
-static final Map<String, Supplier<TypedValue>> TOKENS = new HashMap<>(Map.of(
+static final Map<String, Supplier<TypedValue<?,?>>> TOKENS = new HashMap<>(Map.of(
   "INTEGER", IntegerValue::new, "BYTES", BytesValue::new, "BOOLEAN", BooleanValue::new
 ));
+static final Map<Class, Map/*String , Operator*/> OPERATORS = new HashMap<Class, Map>();
 
-@FunctionalInterface public interface Operator { Object apply(Object... args); }
-public static abstract class TypedValue<S extends TypedValue /* Fluent API: S is Self type */, V /* Value type */> {
-  private V value; protected TypedValue(V value) { this.value = value; }
-  private final Map<String, Operator> operators = new HashMap<>();
+@FunctionalInterface public interface Operator<T extends TypedValue<T, ?>> { Object apply(T v, Object... args); }
+
+public static abstract class TypedValue<S extends TypedValue<S,V> /* Fluent API: S is Self type */, V /* Value type */> { @SuppressWarnings("unchecked") S self() { return (S) this; }@SuppressWarnings("unchecked") Class<S> selfType() { return (Class<S>)self().getClass(); }
+  private final Map<String, Operator<S>> operators; private V value; protected TypedValue(V value) { this.value = value; this.operators = getOperators(selfType()); }
 
   public final V get() { return this.value; }
   @SuppressWarnings("unchecked") public final void set(Object v) {
@@ -33,14 +50,11 @@ public static abstract class TypedValue<S extends TypedValue /* Fluent API: S is
   }
   protected V convertFromBytes(byte[] data)               { throw new AssertionError("Unsupported from-bytes conversion on %s".formatted(this)); }
   protected V convertFromObject(Object v)                 { throw new AssertionError("Unsupported from-object conversion on %s for source |%s|".formatted(this, v)); }
-  public Object send(String operatorName, Object... args) { if(operators.containsKey(operatorName)) return operators.get(operatorName).apply(args); throw new AssertionError("Unsupported operator %s on %s".formatted(operatorName, this)); }
+  public Object send(String operatorName, Object... args) { if(operators.containsKey(operatorName)) return operators.get(operatorName).apply(self(), args); throw new AssertionError("Unsupported operator %s on %s".formatted(operatorName, this)); }
   
-  @SuppressWarnings("unchecked")
-  public final S      with      (Object v) { set(v); return (S) this; }
+  public final S      with      (Object v) { set(v); return self(); }
   public       String toString  ()         { return new String(bytesValue()); }
   protected    byte[] bytesValue()         { return new BytesValue().convertFromObject(this.get()); }
-
-  public void registerOperator(String name, Operator operator) { operators.put(name, operator); }
 }
 
 static class IntegerValue extends TypedValue<IntegerValue, Integer> {
@@ -51,11 +65,11 @@ static class IntegerValue extends TypedValue<IntegerValue, Integer> {
   protected Integer convertFromBytes(byte[] data)
   { return Integer.parseInt(new String(data)); }
 
-  { class Accessor { Stream<Integer> get(Object[] args) { return get(args, 0, args.length); } Stream<Integer> get(Object[] args, int start, int size) { return Arrays.stream(args).skip(start - 1).limit(size).map(IntegerValue::new).map(IntegerValue::get); } }
-    registerOperator("-"   , args -> new IntegerValue(get().intValue() - new Accessor().get(args).mapToInt(Integer::intValue).sum()) );
-    registerOperator("+"   , args -> new IntegerValue(get().intValue() + new Accessor().get(args).mapToInt(Integer::intValue).sum())     );
-    registerOperator("prec", args -> new IntegerValue(get().intValue()-1)                                                            );
-    registerOperator("succ", args -> new IntegerValue(get().intValue()+1)                                                            );
+  static { class Accessor { Stream<Integer> get(Object[] args) { return get(args, 0, args.length); } Stream<Integer> get(Object[] args, int start, int size) { return Arrays.stream(args).skip(start - 1).limit(size).map(IntegerValue::new).map(IntegerValue::get); } }
+    addOperator(IntegerValue.class, "-"   , (v, args) -> new IntegerValue(v.get().intValue() - new Accessor().get(args).mapToInt(Integer::intValue).sum()) );
+    addOperator(IntegerValue.class, "+"   , (v, args) -> new IntegerValue(v.get().intValue() + new Accessor().get(args).mapToInt(Integer::intValue).sum()) );
+    addOperator(IntegerValue.class, "prec", (v, args) -> new IntegerValue(v.get().intValue()-1)                                                            );
+    addOperator(IntegerValue.class, "succ", (v, args) -> new IntegerValue(v.get().intValue()+1)                                                            );
   }
 }
 
@@ -69,20 +83,22 @@ static class BytesValue extends TypedValue<BytesValue, byte[]> {
   BytesValue() { super(new byte[0]); }
   protected byte[] convertFromBytes(byte[] data)      { return data; }
   protected byte[] convertFromObject(Object v)        { return v.toString().getBytes(); }
-  {
-    registerOperator("|.|", args -> new IntegerValue().with(((byte[]) get()).length) );
-  }
+
   protected byte[] bytesValue() { return get(); }
+
+  static {
+    addOperator(BytesValue.class, "|.|", (v, args) -> new IntegerValue(((byte[]) v.get()).length));
+  }
 }
 
 /******************************************************************** */
 
 static sealed interface Event permits JumpEvent, RehookEvent, PrintEvent, CallEvent, ComputeEvent {}
-static record JumpEvent    (String paragraphName)                                                               implements Event {}
-static record RehookEvent  ()                                                                                   implements Event {}
-static record PrintEvent   (List<String> message)                                                               implements Event {}
-static record ComputeEvent (TypedValue target, TypedValue source, String operator, List<TypedValue> parameters) implements Event {}
-static record CallEvent    (String childProgramName, List<VariableBinding> in, List<VariableBinding> out)       implements Event {} static record VariableBinding(String parentSymb, String childSymb) {}  
+static record JumpEvent    (String paragraphName)                                                                              implements Event {}
+static record RehookEvent  ()                                                                                                  implements Event {}
+static record PrintEvent   (List<String> message)                                                                              implements Event {}
+static record ComputeEvent (TypedValue<?,?> target, TypedValue<?,?> source, String operator, List<TypedValue<?,?>> parameters) implements Event {}
+static record CallEvent    (String childProgramName, List<VariableBinding> in, List<VariableBinding> out)                      implements Event {} static record VariableBinding(String parentSymb, String childSymb) {}  
 
 static interface Program {
   Paragraph    paragraph(String name);
@@ -93,9 +109,9 @@ static interface Program {
 
   default Paragraph headParagraph() { return paragraph(headParagraphName()); }
 }
-@FunctionalInterface static interface Scope       { Optional<TypedValue> symbol   (String token);
-                                                    default TypedValue   getOrDie (String token)                                    { return getOrDie(token, () -> new AssertionError("The requested scope does not contain any reference to %s symbol".formatted(token))); }
-                                                    default TypedValue   getOrDie (String token, Supplier<AssertionError> errorLog) { return symbol(token).orElseThrow(errorLog); }
+@FunctionalInterface static interface Scope       { Optional<TypedValue<?,?>> symbol   (String token);
+                                                    default TypedValue<?,?>   getOrDie (String token)                                    { return getOrDie(token, () -> new AssertionError("The requested scope does not contain any reference to %s symbol".formatted(token))); }
+                                                    default TypedValue<?,?>   getOrDie (String token, Supplier<AssertionError> errorLog) { return symbol(token).orElseThrow(errorLog); }
                                                                                                }
 @FunctionalInterface static interface Paragraph   { List<Instruction> instructions();          }
 @FunctionalInterface static interface Instruction { List<Event> run(Scope scope);              }
@@ -133,7 +149,7 @@ static Instruction performInstruction(String[] tokens) { assert tokens[0].equals
 
 static Instruction printInstruction(String[] tokens) { assert tokens[0].equals("PRINT"); assert tokens.length > 1;
   return scope -> singletonList(new PrintEvent(Arrays.stream(tokens).skip(1)
-                                                     .map(token -> scope.symbol(token).map(Object::toString).orElse(token)).toList()
+                                                     .map(token -> scope.symbol(token).map(Object::toString).orElse("\\n".equals(token) ? System.lineSeparator() : token)).toList()
   ));
 }
 
@@ -185,7 +201,7 @@ static Program getProgram(String programName) {
 }
 
 static Program parse(List<String> lines) { assert lines.stream().noneMatch(String::isBlank);
-  var variables = new HashMap<String, TypedValue>();
+  var variables = new HashMap<String, TypedValue<?,?>>();
   var inputs = new ArrayList<String>();
   var outputs = new ArrayList<String>();
   lines.stream().takeWhile(l -> l.startsWith("DECLARE")).forEach(line -> {

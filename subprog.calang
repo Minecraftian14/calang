@@ -1,9 +1,8 @@
-DECLARE INPUT $X1 BYTES
-
-DECLARE OUTPUT $A INTEGER
+DECLARE INPUT  $X1   BYTES
+DECLARE OUTPUT $A    INTEGER
 
 BEGIN.
-  PRINT ** Subprogram called..
+  PRINT (Subprogram called..)
   COMPT IN $A $X1 |.|
-  PRINT ** End of subprogram
+  PRINT (End of subprogram)
 

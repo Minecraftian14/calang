@@ -196,8 +196,8 @@ static Program parse(List<String> lines) { assert lines.stream().noneMatch(Strin
     var variable = TOKENS.get(varType).get();
     variables.put(varName, variable);
     if (tokens.length == 4) {
-      if("INPUT".equals(tokens[1])) inputs.add(varName);
-      else if ("OUTPUT".equals(tokens[1])) outputs.add(varName);
+      if("INPUT" .equals(tokens[1])) inputs.add(varName) ; else
+      if("OUTPUT".equals(tokens[1])) outputs.add(varName);
     }
   });
   record Par(int lineIndex, String name, List<Instruction> instructions) implements Paragraph {}

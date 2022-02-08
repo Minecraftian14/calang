@@ -65,7 +65,7 @@ static class IntegerValue extends TypedValue<IntegerValue, Integer> {
   protected Integer convertFromBytes(byte[] data)
   { return Integer.parseInt(new String(data)); }
 
-  static { class Accessor { Stream<Integer> get(Object[] args) { return get(args, 0, args.length); } Stream<Integer> get(Object[] args, int start, int size) { return Arrays.stream(args).skip(start - 1).limit(size).map(IntegerValue::new).map(IntegerValue::get); } }
+  static { class Accessor { Stream<Integer> get(Object[] args) { return get(args, 0, args.length); } Stream<Integer> get(Object[] args, int start, int size) { return Arrays.stream(args).skip(start).limit(size).map(IntegerValue::new).map(IntegerValue::get); } }
     addOperator(IntegerValue.class, "-"   , (v, args) -> new IntegerValue(v.get().intValue() - new Accessor().get(args).mapToInt(Integer::intValue).sum()) );
     addOperator(IntegerValue.class, "+"   , (v, args) -> new IntegerValue(v.get().intValue() + new Accessor().get(args).mapToInt(Integer::intValue).sum()) );
     addOperator(IntegerValue.class, "prec", (v, args) -> new IntegerValue(v.get().intValue()-1)                                                            );
@@ -76,7 +76,7 @@ static class IntegerValue extends TypedValue<IntegerValue, Integer> {
 static class BooleanValue extends TypedValue<BooleanValue, Boolean> {
   BooleanValue() { super(Boolean.FALSE); }
   protected Boolean convertFromBytes(byte[] data) { return data.length == 0 || (data.length == 1 && data[0] == 0) ? Boolean.FALSE : Boolean.TRUE; }
-  protected Boolean convertFromObject(Object v)   { if(v instanceof Integer i) return Boolean.valueOf(! Integer.valueOf(0).equals(i)); else return (Boolean) super.convertFromObject(v); }
+  protected Boolean convertFromObject(Object v)   { if(v instanceof Integer i) return Integer.valueOf(0).equals(i) ? Boolean.FALSE : Boolean.TRUE; else return (Boolean) super.convertFromObject(v); }
 }
 
 static class BytesValue extends TypedValue<BytesValue, byte[]> {
@@ -258,7 +258,7 @@ static Map<String, Object> run(Program masterProgram, Map<String, ?> arguments)
                                                         ); Collections.reverse(parInstructions); parInstructions.forEach(planning::push);
                                                       } else
       if (event instanceof RehookEvent              ) { planning.push(new ExecutionPlan(program, instruction)); } else
-      if (event instanceof PrintEvent   printEvent  ) { System.out.println(printEvent.message().stream().collect(Collectors.joining(" "))); } else
+      if (event instanceof PrintEvent   printEvent  ) { System.out.print(printEvent.message().stream().collect(Collectors.joining(" "))); } else
       if (event instanceof CallEvent    callEvent   ) { var childProgram = getProgram(callEvent.childProgramName());
                                                         var inputs = callEvent.in().stream().collect(Collectors.toMap(VariableBinding::childSymb, binding -> scope.getOrDie(binding.parentSymb()).get()));
                                                         var outputs = run(childProgram, inputs);

@@ -138,8 +138,8 @@ static Instruction performInstruction(String[] tokens) { assert tokens[0].equals
     case 4 -> {
       var testSymbol = tokens[3];
       yield switch(tokens[2]) {
-        case "IF"    -> scope -> Boolean.TRUE.equals(scope.symbol(testSymbol).get().get()) ? singletonList(jumpEvent) : emptyList();
-        case "WHILE" -> scope -> Boolean.TRUE.equals(scope.symbol(testSymbol).get().get()) ? List.of(new RehookEvent(), jumpEvent) : emptyList();
+        case "IF"    -> scope -> Boolean.FALSE.equals(scope.getOrDie(testSymbol).get()) ? emptyList() : singletonList(jumpEvent);
+        case "WHILE" -> scope -> Boolean.FALSE.equals(scope.getOrDie(testSymbol).get()) ? emptyList() : List.of(new RehookEvent(), jumpEvent);
         default -> throw new AssertionError("Unrecognized pattern %s".formatted(tokens[2]));
       };
     }

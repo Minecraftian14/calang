@@ -200,26 +200,19 @@ static Program parse(List<String> lines) { assert lines.stream().noneMatch(Strin
       else if ("OUTPUT".equals(tokens[1])) outputs.add(varName);
     }
   });
-  var paragraphs = new HashMap<String, Paragraph>();
-  IntStream.range(0, lines.size()).dropWhile(i -> lines.get(i).startsWith("DECLARE"))
+  record Par(int lineIndex, String name, List<Instruction> instructions) implements Paragraph {}
+  var paragraphs = IntStream.range(0, lines.size()).dropWhile(i -> lines.get(i).startsWith("DECLARE"))
            .filter(i -> !lines.get(i).startsWith("  "))
-           .forEach(i -> {
-             var paragraphName = lines.get(i).substring(0, lines.get(i).length()-1);
-             var instructions = IntStream.range(i+1, lines.size())
-                                         .takeWhile(j -> lines.get(j).startsWith("  "))
-                                         .mapToObj(lines::get).map(Calang::getInstruction)
-                                         .toList();
-             paragraphs.put(paragraphName, () -> instructions);
-           });
-  var headParagraphName = IntStream.range(0, lines.size()).dropWhile(i -> lines.get(i).startsWith("DECLARE"))
-           .filter(i -> !lines.get(i).startsWith("  "))
-           .mapToObj(i -> lines.get(i).substring(0, lines.get(i).length() - 1))
-           .findFirst().orElseThrow();
-  assert paragraphs.containsKey(headParagraphName);
+           .mapToObj(i -> new Par(i, lines.get(i).substring(0, lines.get(i).length()-1),
+                                  IntStream.range(i+1, lines.size()).takeWhile(j -> lines.get(j).startsWith("  "))
+                                           .mapToObj(lines::get).map(Calang::getInstruction).toList()
+           )).sorted(Comparator.comparing(Par::name)).toList();
+  var headParagraph = paragraphs.stream().min(Comparator.comparingInt(Par::lineIndex)).orElseThrow(() -> new AssertionError("There is no paragraph in the program.. That's unfortunate"));
 
   return new Program() {
-    public String       headParagraphName  ()            { return headParagraphName; }
-    public Paragraph    paragraph          (String name) { return paragraphs.get(name); }
+    public String       headParagraphName  ()            { return headParagraph().name(); }
+    public Par          headParagraph      ()            { return headParagraph; }
+    public Paragraph    paragraph          (String name) { return paragraphs.stream().filter(__ -> __.name().equals(name)).findFirst().orElseThrow(() -> new AssertionError("Unresolved paragrah named %s".formatted(name))); }
     public Scope        scope              ()            { return symbName -> Optional.ofNullable(variables.get(symbName)); }
     public List<String> getDeclaredOutputs ()            { return outputs; }
     public List<String> getDeclaredInputs  ()            { return inputs; }

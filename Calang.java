@@ -157,7 +157,7 @@ static Instruction storeInstruction(String[] tokens) { assert tokens[0].equals("
   var target = tokens[2];
   var source = Arrays.stream(tokens).skip(3).collect(Collectors.joining(" "));
   return scope -> {
-    scope.symbol(source).ifPresentOrElse(scope.getOrDie(target)::set, () -> scope.getOrDie(target).set(source));
+    scope.getOrDie(target).set(scope.symbol(source).map(Object.class::cast).orElse(source));
     return emptyList();
   };
 }

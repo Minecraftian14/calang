@@ -236,28 +236,27 @@ static Program parse(List<String> lines) { assert lines.stream().noneMatch(Strin
 
 static Map<String, Object> run(Program masterProgram, Map<String, ?> arguments)
 {
-  record ExecutionPlan(Program program, Instruction instruction) {}
-  var planning = new ArrayDeque<ExecutionPlan>(
-    masterProgram.headParagraph().instructions().stream()
-           .map(instruction -> new ExecutionPlan(masterProgram, instruction)).toList()
-  );
+  record ExecutionPlan(Program program, Paragraph paragraph, int instrIndex) { public String toString() { return "%s:%s (%d)".formatted(program.hashCode(), paragraph.hashCode(), instrIndex); } }
+  var planning = new ArrayDeque<ExecutionPlan>() {{ add(new ExecutionPlan(masterProgram, masterProgram.headParagraph(), 0)); }};
 
   for(var key: arguments.keySet()) masterProgram.scope().getOrDie(key, () -> new AssertionError("Provided input field named %s cannot be mapped on program inputs".formatted(key))).set(arguments.get(key));
   for(var key: masterProgram.getDeclaredInputs()) if(! arguments.containsKey(key)) throw new AssertionError("Unable to run the program as not all inputs are given; missing at least %s".formatted(key));
 
-  while(! planning.isEmpty()) {
+  while(! planning.isEmpty()) {// try { Thread.sleep(100); } catch(Exception ignored) {}
+
     var plan        = planning.pollFirst();
     var program     = plan.program();
-    var instruction = plan.instruction();
+    var paragraph   = plan.paragraph();
+    var instrIndex  = plan.instrIndex();                                   if(instrIndex >= paragraph.instructions().size()) continue;
     var scope       = plan.program().scope();
-    var events      = instruction.run(scope);
+    var events      = paragraph.instructions().get(instrIndex).run(scope); assert events.stream().noneMatch(RehookEvent.class::isInstance) || events.stream().skip(1).noneMatch(RehookEvent.class::isInstance);
+
+    if(events.isEmpty() || ! (events.get(0) instanceof RehookEvent))
+      planning.push(new ExecutionPlan(program, paragraph, instrIndex+1));    
+
     for(var event: events) {
-      if (event instanceof JumpEvent    jumpEvent   ) { if(jumpEvent.paragraphName().equals(program.headParagraphName())) throw new AssertionError("Unable to Jump in the head paragraph named %s".formatted(jumpEvent.paragraphName()));
-                                                        var parInstructions = new ArrayList<ExecutionPlan>(
-                                                          program.paragraph(jumpEvent.paragraphName()).instructions().stream().map(instr -> new ExecutionPlan(program, instr)).toList()
-                                                        ); Collections.reverse(parInstructions); parInstructions.forEach(planning::push);
-                                                      } else
-      if (event instanceof RehookEvent              ) { planning.push(new ExecutionPlan(program, instruction)); } else
+      if (event instanceof JumpEvent    jumpEvent   ) { planning.push(new ExecutionPlan(program, program.paragraph(jumpEvent.paragraphName()), 0)); } else
+      if (event instanceof RehookEvent              ) { planning.push(new ExecutionPlan(program, paragraph, instrIndex)); } else
       if (event instanceof PrintEvent   printEvent  ) { System.out.print(printEvent.message().stream().collect(Collectors.joining(" "))); } else
       if (event instanceof CallEvent    callEvent   ) { var childProgram = getProgram(callEvent.childProgramName());
                                                         var inputs = callEvent.in().stream().collect(Collectors.toMap(VariableBinding::childSymb, binding -> scope.getOrDie(binding.parentSymb()).get()));

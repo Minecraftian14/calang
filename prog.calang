@@ -18,7 +18,7 @@ INIT.
   STORE IN $F 1
 
 PRINT.
-  PRINT Printing $X ... \n
+  PRINT Printing $X ... (Y = $Y and F = $F now) \n
   COMPT IN $Y $Y prec
   STORE IN $F $Y
 

@@ -17,8 +17,10 @@ static final Map<String, Supplier<TypedValue>> TOKENS = new HashMap<>(Map.of(
   "INTEGER", IntegerValue::new, "BYTES", BytesValue::new, "BOOLEAN", BooleanValue::new
 ));
 
+@FunctionalInterface public interface Operator { Object apply(Object... args); }
 public static abstract class TypedValue<S extends TypedValue /* Fluent API: S is Self type */, V /* Value type */> {
-  private V value; protected TypedValue(V value) { this.value = value; } 
+  private V value; protected TypedValue(V value) { this.value = value; }
+  private final Map<String, Operator> operators = new HashMap<>();
 
   public final V get() { return this.value; }
   @SuppressWarnings("unchecked") public final void set(Object v) {
@@ -31,12 +33,14 @@ public static abstract class TypedValue<S extends TypedValue /* Fluent API: S is
   }
   protected V convertFromBytes(byte[] data)               { throw new AssertionError("Unsupported from-bytes conversion on %s".formatted(this)); }
   protected V convertFromObject(Object v)                 { throw new AssertionError("Unsupported from-object conversion on %s for source |%s|".formatted(this, v)); }
-  public Object send(String operatorName, Object... args) { throw new AssertionError("Unsupported operator %s on %s".formatted(operatorName, this)); }
+  public Object send(String operatorName, Object... args) { if(operators.containsKey(operatorName)) return operators.get(operatorName).apply(args); throw new AssertionError("Unsupported operator %s on %s".formatted(operatorName, this)); }
   
   @SuppressWarnings("unchecked")
-  public final S with           (Object v) { set(v); return (S) this; }
+  public final S      with      (Object v) { set(v); return (S) this; }
   public       String toString  ()         { return new String(bytesValue()); }
   protected    byte[] bytesValue()         { return new BytesValue().convertFromObject(this.get()); }
+
+  public void registerOperator(String name, Operator operator) { operators.put(name, operator); }
 }
 
 static class IntegerValue extends TypedValue<IntegerValue, Integer> {
@@ -47,15 +51,11 @@ static class IntegerValue extends TypedValue<IntegerValue, Integer> {
   protected Integer convertFromBytes(byte[] data)
   { return Integer.parseInt(new String(data)); }
 
-  public Object send(String operatorName, Object... args)
-  { class Accessor { Stream<Integer> get() { return get(0, args.length); } Stream<Integer> get(int start, int size) { return Arrays.stream(args).skip(start - 1).limit(size).map(IntegerValue::new).map(IntegerValue::get); } }
-    return switch(operatorName) {
-      case "-"    -> new IntegerValue(get().intValue() - new Accessor().get().mapToInt(Integer::intValue).sum());
-      case "+"    -> new IntegerValue(get().intValue() + new Accessor().get().mapToInt(Integer::intValue).sum());
-      case "prec" -> new IntegerValue(get().intValue()-1);
-      case "succ" -> new IntegerValue(get().intValue()+1);
-      default     -> super.send(operatorName, args);
-    };
+  { class Accessor { Stream<Integer> get(Object[] args) { return get(args, 0, args.length); } Stream<Integer> get(Object[] args, int start, int size) { return Arrays.stream(args).skip(start - 1).limit(size).map(IntegerValue::new).map(IntegerValue::get); } }
+    registerOperator("-"   , args -> new IntegerValue(get().intValue() - new Accessor().get(args).mapToInt(Integer::intValue).sum()) );
+    registerOperator("+"   , args -> new IntegerValue(get().intValue() + new Accessor().get(args).mapToInt(Integer::intValue).sum())     );
+    registerOperator("prec", args -> new IntegerValue(get().intValue()-1)                                                            );
+    registerOperator("succ", args -> new IntegerValue(get().intValue()+1)                                                            );
   }
 }
 
@@ -69,10 +69,9 @@ static class BytesValue extends TypedValue<BytesValue, byte[]> {
   BytesValue() { super(new byte[0]); }
   protected byte[] convertFromBytes(byte[] data)      { return data; }
   protected byte[] convertFromObject(Object v)        { return v.toString().getBytes(); }
-  public Object send(String operator, Object... args) { return switch(operator) {
-    case "|.|" -> new IntegerValue().with(((byte[]) get()).length);
-    default    -> super.send(operator, args);
-  };}
+  {
+    registerOperator("|.|", args -> new IntegerValue().with(((byte[]) get()).length) );
+  }
   protected byte[] bytesValue() { return get(); }
 }
 
@@ -237,7 +236,8 @@ static Map<String, Object> run(Program masterProgram, Map<String, ?> arguments)
     var scope       = plan.program().scope();
     var events      = instruction.run(scope);
     for(var event: events) {
-      if (event instanceof JumpEvent    jumpEvent   ) { var parInstructions = new ArrayList<ExecutionPlan>(
+      if (event instanceof JumpEvent    jumpEvent   ) { if(jumpEvent.paragraphName().equals(program.headParagraphName())) throw new AssertionError("Unable to Jump in the head paragraph named %s".formatted(jumpEvent.paragraphName()));
+                                                        var parInstructions = new ArrayList<ExecutionPlan>(
                                                           program.paragraph(jumpEvent.paragraphName()).instructions().stream().map(instr -> new ExecutionPlan(program, instr)).toList()
                                                         ); Collections.reverse(parInstructions); parInstructions.forEach(planning::push);
                                                       } else

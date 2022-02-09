@@ -11,6 +11,8 @@ public class Calang {
 
 public static Map<String, Object> run(String programName, Map<String, ?> arguments) { return run(getProgram(programName), arguments); }
 
+public static void addType(String typeIdentifier, Supplier<TypedValue<?,?>> typeFactory) { TOKENS.put(typeIdentifier, typeFactory); }
+
 @SuppressWarnings("unchecked")
 public static <T extends TypedValue<T, ?>> void addOperator(Class<T> clz, String operatorName, Operator<T> operator) {
   if (OPERATORS.containsKey(clz)) {
@@ -57,10 +59,10 @@ public static abstract class TypedValue<S extends TypedValue<S,V> /* Fluent API:
   protected    byte[] bytesValue()         { return new BytesValue().convertFromObject(this.get()); }
 }
 
-static class IntegerValue extends TypedValue<IntegerValue, Integer> {
-  IntegerValue() { this(0); }
-  IntegerValue(int i) { super(Integer.valueOf(i)); }
-  IntegerValue(Object v) { this(); with(v); }
+public static class IntegerValue extends TypedValue<IntegerValue, Integer> {
+  public IntegerValue() { this(0); }
+  public IntegerValue(int i) { super(Integer.valueOf(i)); }
+  public IntegerValue(Object v) { this(); with(v); }
 
   protected Integer convertFromBytes(byte[] data)
   { return Integer.parseInt(new String(data)); }
@@ -73,14 +75,14 @@ static class IntegerValue extends TypedValue<IntegerValue, Integer> {
   }
 }
 
-static class BooleanValue extends TypedValue<BooleanValue, Boolean> {
-  BooleanValue() { super(Boolean.FALSE); }
+public static class BooleanValue extends TypedValue<BooleanValue, Boolean> {
+  public BooleanValue() { super(Boolean.FALSE); }
   protected Boolean convertFromBytes(byte[] data) { return data.length == 0 || (data.length == 1 && data[0] == 0) ? Boolean.FALSE : Boolean.TRUE; }
   protected Boolean convertFromObject(Object v)   { if(v instanceof Integer i) return Integer.valueOf(0).equals(i) ? Boolean.FALSE : Boolean.TRUE; else return (Boolean) super.convertFromObject(v); }
 }
 
-static class BytesValue extends TypedValue<BytesValue, byte[]> {
-  BytesValue() { super(new byte[0]); }
+public static class BytesValue extends TypedValue<BytesValue, byte[]> {
+  public BytesValue() { super(new byte[0]); }
   protected byte[] convertFromBytes(byte[] data)      { return data; }
   protected byte[] convertFromObject(Object v)        { return v.toString().getBytes(); }
 
@@ -208,7 +210,7 @@ static Program parse(List<String> lines) { assert lines.stream().noneMatch(Strin
     var tokens = line.trim().split("\s+"); assert tokens[0].equals("DECLARE");
     var varName = tokens[tokens.length - 2];
     var varType = tokens[tokens.length - 1];
-    var variable = TOKENS.get(varType).get();
+    var variable = Objects.requireNonNull(TOKENS.get(varType), "Unable to resolve type %s".formatted(varType)).get();
     variables.put(varName, variable);
     if (tokens.length == 4) {
       if("INPUT" .equals(tokens[1])) inputs.add(varName) ; else

@@ -1,7 +1,7 @@
 import java.util.HashMap;
 import static java.util.Arrays.stream;
 
-public class Example
+public class Example extends Calang
 {
   public static void main(String... args)
   {
@@ -11,7 +11,7 @@ public class Example
         put("$%s".formatted(args[i]), args[i+1]);
     }};
 
-    var outputs = Calang.run(programName, inputs);
+    var outputs = new Example().run(programName, inputs);
     for(var k : outputs.keySet()) System.out.println("Out %s = %s".formatted(k, outputs.get(k)));
   }
 }

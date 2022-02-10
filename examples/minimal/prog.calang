@@ -1,0 +1,22 @@
+DECLARE INPUT $X BYTES
+
+DECLARE       $Y INTEGER
+DECLARE       $F BOOLEAN
+
+BEGIN.
+  PRINT Main program starts initializing \n
+  PERFORM INIT
+  PRINT Main program calls subprogram to get tower's height \n
+  CALL subprog $X >> $X1 $Y << $A
+  PRINT Tower height is size of input = $Y \n
+  CALL tower $Y >> $HEIGHT
+  PRINT End of Main program \n
+
+INIT.
+  STORE IN $F 1
+  PERFORM DUMMY
+  PERFORM DUMMY IF $F
+
+DUMMY.
+  PRINT (hey don't mind me, I'm just a dummy print) \n
+

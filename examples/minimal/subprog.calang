@@ -2,7 +2,5 @@ DECLARE INPUT  $X1   BYTES
 DECLARE OUTPUT $A    INTEGER
 
 BEGIN.
-  PRINT (Subprogram called..) \n
   COMPT IN $A $X1 |.|
-  PRINT (End of subprogram) \n
 

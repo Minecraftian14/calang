@@ -7,7 +7,7 @@ import java.nio.file.*;
 import static java.util.Collections.singletonList;
 import static java.util.Collections.emptyList;
 
-public class Calang { protected Calang() {
+public class Calang { protected Calang() { this(""); } protected Calang(String basePath) { assert basePath.isEmpty() || basePath.endsWith("/"); this.basePath = basePath;
   TOKENS = new HashMap<>(Map.of(
     "INTEGER", IntegerValue::new, "BYTES", BytesValue::new, "BOOLEAN", BooleanValue::new
   )); OPERATORS = new HashMap<Class, Map>();
@@ -21,6 +21,7 @@ public class Calang { protected Calang() {
     addOperator(BytesValue.class, "|.|", (v, args) -> new IntegerValue(v.get().length, this));
   }
 }
+private final String basePath;
 private Map<String, Function<Calang, TypedValue<?,?>>> TOKENS;
 private Map<Class, Map/*String , Operator*/> OPERATORS;
 
@@ -212,7 +213,7 @@ private  Map<String, Program> PROGRAMS = new HashMap<>();
 private Program getProgram(String programName) {
   if(! PROGRAMS.containsKey(programName)) {
     try {
-      var lines = Files.readAllLines(Paths.get("%s.calang".formatted(programName)));
+      var lines = Files.readAllLines(Paths.get("./%s%s.calang".formatted(basePath, programName)));
       return parse(lines.stream().filter(l -> !l.isBlank()).toList());
     } catch(IOException e) { throw new UncheckedIOException(e); }
   } assert PROGRAMS.containsKey(programName);

@@ -158,36 +158,49 @@ You an use the `make compile` command to build Calang.
 
 ## Testing on different programs
 
+### Basic and full instruction test case
+
 The Calang main repository contains two programs that you can run.
+From the `examples` directory directly, you can test a program that contains the entire set
+of Calang instructions (not necessarily built-in types).
+
+Typing
 ```
-java -ea Example.java subprog X1 "Hello!"
-```
-should output
-```
-** Subprogram called..
-** End of subprogram
-Out $A = 6
-```
-For the second:
-```
-java -ea Example.java prog X "Hello!"
+java -ea -cp .. Example.java minimal/ prog X "Hello world"
 ```
 should output
 ```
-* Main program starts initializing
-* Main program computes
-** Subprogram called..
-** End of subprogram
-(hey don't mind me, I'm just a dummy print)
-(hey don't mind me, I'm just a dummy print)
-Printing Hello! ...
-Printing Hello! ...
-Printing Hello! ...
-Printing Hello! ...
-Printing Hello! ...
-Printing Hello! ...
-Printing Hello! ...
-* End of Main program
+Main program starts initializing 
+(hey don't mind me, I'm just a dummy print) 
+(hey don't mind me, I'm just a dummy print) 
+Main program calls subprogram to get tower's height 
+Tower height is size of input = 11 
+#
+##
+###
+####
+#####
+######
+#######
+########
+#########
+##########
+###########
+End of Main program
+```
+
+### Type system enrichment
+
+The second example illustrates type system enrichment at the level of the runtime.
+Going on `examples/filesum` and typing
+```
+java -ea -cp ../.. FileSumExample.java
+```
+should output
+```
+End of file reached. Got 
+ ... 6 individuals 
+ ... Total = 253 
 ```
 
 # Future of Calang

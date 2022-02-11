@@ -24,6 +24,23 @@ public class Calang { protected Calang() {
 private Map<String, Function<Calang, TypedValue<?,?>>> TOKENS;
 private Map<Class, Map/*String , Operator*/> OPERATORS;
 
+private enum Rejections {
+  NO_PARAGRAPH_FOUND                   ("There is no paragraph in the program.. That's unfortunate"                    ),
+  UNDEFINED_PARAGRAPH                  ("Unresolved paragrah named %s"                                                 ),
+  UNMAPPABLE_INPUT                     ("Provided input field named %s cannot be mapped on program inputs"             ),
+  UNMAPPED_INPUT                       ("Unable to run the program as not all inputs are given; missing at least %s"   ),
+  UNKNOWN_VARIABLE                     ("The requested scope does not contain any reference to %s symbol"              ),
+  UNSUPPORTED_OPERATOR                 ("Unsupported operator %s on %s"                                                ),
+  UNRECOGNIZED_INSTRUCTION_TOKEN       ("Unrecognized instruction token %s"                                            ),
+  UNRECOGNIZED_PERFORM_DECORATOR       ("Unrecognized <PERFORM> instruction decorator %s"                              ),
+  MALFORMED_PERFORM_INSTRUCTION        ("Malformed expression PERFORM |%s|"                                            ),
+  UNSUPPORTED_FROM_BYTES_CONVERSION    ("Unsupported from-bytes conversion on %s"                                      ),
+  UNSUPPORTED_FROM_OBJECT_CONVERSION   ("Unsupported from-object conversion on %s for source |%s|"                     )
+  ;
+  private String messageTemplate; Rejections(String tpl) { messageTemplate = tpl; }
+  AssertionError error(Object... args) { return new AssertionError(messageTemplate.formatted(args)); }
+}
+
 public final Map<String, Object> run(String programName, Map<String, ?> arguments) { return run(getProgram(programName), arguments); }
 
 public final void addType(String typeIdentifier, Function<Calang, TypedValue<?,?>> typeFactory) { TOKENS.put(typeIdentifier, typeFactory); }
@@ -60,9 +77,9 @@ public static abstract class TypedValue<S extends TypedValue<S,V> /* Fluent API:
     if (v instanceof String data && data.length()>0) value = convertFromBytes(data.getBytes());        else
                                                      value = convertFromObject(v);
   }
-  protected V convertFromBytes(byte[] data)               { throw new AssertionError("Unsupported from-bytes conversion on %s".formatted(this)); }
-  protected V convertFromObject(Object v)                 { throw new AssertionError("Unsupported from-object conversion on %s for source |%s|".formatted(this, v)); }
-  public Object send(String operatorName, Object... args) { if(operators.containsKey(operatorName)) return operators.get(operatorName).apply(self(), args); throw new AssertionError("Unsupported operator %s on %s".formatted(operatorName, this)); }
+  protected V convertFromBytes(byte[] data)               { throw Rejections.UNSUPPORTED_FROM_BYTES_CONVERSION.error(this); }
+  protected V convertFromObject(Object v)                 { throw Rejections.UNSUPPORTED_FROM_OBJECT_CONVERSION.error(this, v); }
+  public Object send(String operatorName, Object... args) { if(operators.containsKey(operatorName)) return operators.get(operatorName).apply(self(), args); throw Rejections.UNSUPPORTED_OPERATOR.error(operatorName, this); }
   
   public final S      with      (Object v) { set(v); return self(); }
   public       String toString  ()         { return new String(bytesValue()); }
@@ -112,7 +129,7 @@ private static interface Program {
   default Paragraph headParagraph() { return paragraph(headParagraphName()); }
 }
 @FunctionalInterface private static interface Scope       {         Optional<TypedValue<?,?>> symbol   (String token);
-                                                            default TypedValue<?,?>           getOrDie (String token)                                    { return getOrDie(token, () -> new AssertionError("The requested scope does not contain any reference to %s symbol".formatted(token))); }
+                                                            default TypedValue<?,?>           getOrDie (String token)                                    { return getOrDie(token, () -> Rejections.UNKNOWN_VARIABLE.error(token)); }
                                                             default TypedValue<?,?>           getOrDie (String token, Supplier<AssertionError> errorLog) { return symbol(token).orElseThrow(errorLog); }
                                                                                                }
 @FunctionalInterface private static interface Paragraph   { List<Instruction> instructions();          }
@@ -129,7 +146,7 @@ private static Instruction getInstruction(String line)
     case "STORE"   -> storeInstruction(tokens);
     case "COMPT"   -> computeInstruction(tokens);
     case "CALL"    -> callInstruction(tokens);
-    default        -> throw new AssertionError("Unrecognized token %s".formatted(tokens[0]));
+    default        -> throw Rejections.UNRECOGNIZED_INSTRUCTION_TOKEN.error(tokens[0]);
   };
 }
 
@@ -142,10 +159,10 @@ private static Instruction performInstruction(String[] tokens) { assert tokens[0
       yield switch(tokens[2]) {
         case "IF"    -> scope -> Boolean.FALSE.equals(scope.getOrDie(testSymbol).get()) ? emptyList() : singletonList(jumpEvent);
         case "WHILE" -> scope -> Boolean.FALSE.equals(scope.getOrDie(testSymbol).get()) ? emptyList() : List.of(new RehookEvent(), jumpEvent);
-        default -> throw new AssertionError("Unrecognized pattern %s".formatted(tokens[2]));
+        default -> throw Rejections.UNRECOGNIZED_PERFORM_DECORATOR.error(tokens[2]);
       };
     }
-    default -> throw new AssertionError("Malformed expression PERFORM: wrong number of tokens");
+    default -> throw Rejections.MALFORMED_PERFORM_INSTRUCTION.error(Arrays.toString(tokens));
   };
 }
 
@@ -224,12 +241,12 @@ private Program parse(List<String> lines) { assert lines.stream().noneMatch(Stri
                                   IntStream.range(i+1, lines.size()).takeWhile(j -> lines.get(j).startsWith("  "))
                                            .mapToObj(lines::get).map(Calang::getInstruction).toList()
            )).sorted(Comparator.comparing(Par::name)).toList();
-  var headParagraph = paragraphs.stream().min(Comparator.comparingInt(Par::lineIndex)).orElseThrow(() -> new AssertionError("There is no paragraph in the program.. That's unfortunate"));
+  var headParagraph = paragraphs.stream().min(Comparator.comparingInt(Par::lineIndex)).orElseThrow(() -> Rejections.NO_PARAGRAPH_FOUND.error());
 
   return new Program() {
     public String       headParagraphName  ()            { return headParagraph().name(); }
     public Par          headParagraph      ()            { return headParagraph; }
-    public Paragraph    paragraph          (String name) { return paragraphs.stream().filter(__ -> __.name().equals(name)).findFirst().orElseThrow(() -> new AssertionError("Unresolved paragrah named %s".formatted(name))); }
+    public Paragraph    paragraph          (String name) { return paragraphs.stream().filter(__ -> __.name().equals(name)).findFirst().orElseThrow(() -> Rejections.UNDEFINED_PARAGRAPH.error(name)); }
     public Scope        scope              ()            { return symbName -> Optional.ofNullable(variables.get(symbName)); }
     public List<String> getDeclaredOutputs ()            { return outputs; }
     public List<String> getDeclaredInputs  ()            { return inputs; }
@@ -241,8 +258,8 @@ private Map<String, Object> run(Program masterProgram, Map<String, ?> arguments)
   record ExecutionPlan(Program program, Paragraph paragraph, int instrIndex) { public String toString() { return "%s:%s (%d)".formatted(program.hashCode(), paragraph.hashCode(), instrIndex); } }
   var planning = new ArrayDeque<ExecutionPlan>() {{ add(new ExecutionPlan(masterProgram, masterProgram.headParagraph(), 0)); }};
 
-  for(var key: arguments.keySet()) masterProgram.scope().getOrDie(key, () -> new AssertionError("Provided input field named %s cannot be mapped on program inputs".formatted(key))).set(arguments.get(key));
-  for(var key: masterProgram.getDeclaredInputs()) if(! arguments.containsKey(key)) throw new AssertionError("Unable to run the program as not all inputs are given; missing at least %s".formatted(key));
+  for(var key: arguments.keySet()) masterProgram.scope().getOrDie(key, () -> Rejections.UNMAPPABLE_INPUT.error(key)).set(arguments.get(key));
+  for(var key: masterProgram.getDeclaredInputs()) if(! arguments.containsKey(key)) throw Rejections.UNMAPPED_INPUT.error(key);
 
   while(! planning.isEmpty()) {// try { Thread.sleep(100); } catch(Exception ignored) {}
 
@@ -257,13 +274,13 @@ private Map<String, Object> run(Program masterProgram, Map<String, ?> arguments)
       planning.push(new ExecutionPlan(program, paragraph, instrIndex+1));    
 
     for(var event: events) {
-      if (event instanceof JumpEvent    jumpEvent   ) { planning.push(new ExecutionPlan(program, program.paragraph(jumpEvent.paragraphName()), 0)); } else
-      if (event instanceof RehookEvent              ) { planning.push(new ExecutionPlan(program, paragraph, instrIndex)); } else
-      if (event instanceof PrintEvent   printEvent  ) { System.out.print(printEvent.message().stream().collect(Collectors.joining(" "))); } else
+      if (event instanceof JumpEvent    jumpEvent   ) { planning.push(new ExecutionPlan(program, program.paragraph(jumpEvent.paragraphName()), 0)); }                                                       else
+      if (event instanceof RehookEvent              ) { planning.push(new ExecutionPlan(program, paragraph, instrIndex)); }                                                                                 else
+      if (event instanceof PrintEvent   printEvent  ) { System.out.print(printEvent.message().stream().collect(Collectors.joining(" "))); }                                                                 else
       if (event instanceof CallEvent    callEvent   ) { var childProgram = getProgram(callEvent.childProgramName());
                                                         var inputs = callEvent.in().stream().collect(Collectors.toMap(VariableBinding::childSymb, binding -> scope.getOrDie(binding.parentSymb()).get()));
                                                         var outputs = run(childProgram, inputs);
-                                                        for(var key: callEvent.out()) program.scope().getOrDie(key.parentSymb()).set(outputs.get(key.childSymb())); } else
+                                                        for(var key: callEvent.out()) program.scope().getOrDie(key.parentSymb()).set(outputs.get(key.childSymb())); }                                       else
       if (event instanceof ComputeEvent computeEvent) { computeEvent.target().set(computeEvent.source().send(computeEvent.operator(), computeEvent.parameters().toArray())); }
     }
   }

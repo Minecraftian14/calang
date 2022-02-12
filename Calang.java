@@ -113,11 +113,12 @@ protected byte[] asCalangBytes(Object v) { return new BytesValue(this).with(v).g
 
 /******************************************************************** */
 
-private static sealed interface Event permits JumpEvent, PrintEvent, CallEvent, ComputeEvent {}
-private static record JumpEvent    (String paragraphName, boolean withRehook)                                                          implements Event { JumpEvent(String paragraphName) { this(paragraphName, false); } }
-private static record PrintEvent   (List<String> message)                                                                              implements Event {}
-private static record ComputeEvent (TypedValue<?,?> target, TypedValue<?,?> source, String operator, List<TypedValue<?,?>> parameters) implements Event {}
-private static record CallEvent    (String childProgramName, List<VariableBinding> in, List<VariableBinding> out)                      implements Event {} static record VariableBinding(String parentSymb, String childSymb) {}  
+private static sealed interface Instruction permits JumpInstruction, PrintInstruction, StoreInstruction, CallInstruction, ComptInstruction {}
+private static record JumpInstruction  (String paragraphName, Supplier<Boolean> shouldJump, boolean withRehook)                                    implements Instruction {}
+private static record StoreInstruction (TypedValue<?,?> target, Supplier<Object> lazyValue)                                                implements Instruction {}
+private static record PrintInstruction (List<String> message)                                                                              implements Instruction {}
+private static record ComptInstruction (TypedValue<?,?> target, Function<Object[], Object> binding, List<TypedValue<?,?>> parameters)      implements Instruction {}
+private static record CallInstruction  (String childProgramName, List<VariableBinding> in, List<VariableBinding> out)                      implements Instruction {} static record VariableBinding(String parentSymb, String childSymb) {}  
 
 private static interface Program {
   Paragraph    paragraph(String name);
@@ -133,9 +134,8 @@ private static interface Program {
                                                             default TypedValue<?,?>           getOrDie (String token, Supplier<AssertionError> errorLog) { return symbol(token).orElseThrow(errorLog); }
                                                                                                }
 @FunctionalInterface private static interface Paragraph   { List<Instruction> instructions();          }
-@FunctionalInterface private static interface Instruction { Event run(Scope scope);              }
 
-private static Instruction getInstruction(String line, Scope scope)
+private Instruction getInstruction(String line, Scope scope)
 {
   if (line.startsWith("  ")) return getInstruction(line.substring(2), scope);
   assert line.indexOf(" ") > 0 : "Malformed instruction line |%s|".formatted(line);
@@ -150,54 +150,49 @@ private static Instruction getInstruction(String line, Scope scope)
   };
 }
 
-private static Instruction performInstruction(String[] tokens, Scope scope) { assert tokens[0].equals("PERFORM");
+private Instruction performInstruction(String[] tokens, Scope scope) { assert tokens[0].equals("PERFORM");
   return switch(tokens.length) {
-    case 2 -> __ -> new JumpEvent(tokens[1]);
+    case 2 -> new JumpInstruction(tokens[1], () -> Boolean.TRUE, false);
     case 4 -> {
       var variable = scope.getOrDie(tokens[3]); if(!(variable instanceof BooleanValue)) throw Rejections.BOOLEAN_FLAG_IS_NOT_BOOLEAN.error(tokens[3], variable);
-      yield switch(tokens[2]) {
-        case "IF"    -> __ -> Boolean.FALSE.equals(variable.get()) ? null : new JumpEvent(tokens[1]);
-        case "WHILE" -> __ -> Boolean.FALSE.equals(variable.get()) ? null : new JumpEvent(tokens[1], true);
-        default      -> throw Rejections.UNRECOGNIZED_PERFORM_DECORATOR.error(tokens[2]);
-      };
+      yield new JumpInstruction(tokens[1], ((BooleanValue) variable)::get,
+        switch(tokens[2]) {
+          case "IF"    -> false;
+          case "WHILE" -> true;
+          default      -> throw Rejections.UNRECOGNIZED_PERFORM_DECORATOR.error(tokens[2]);
+        }
+      );
     }
     default -> throw Rejections.MALFORMED_PERFORM_INSTRUCTION.error(Arrays.toString(tokens));
   };
 }
 
-private static Instruction printInstruction(String[] tokens) { assert tokens[0].equals("PRINT"); assert tokens.length > 1;
-  return scope -> new PrintEvent(Arrays.stream(tokens).skip(1)
-                  .map(token -> scope.symbol(token).map(Object::toString)
-                  .orElse("\\n".equals(token) ? System.lineSeparator() : token)).toList()
-  );
+private Instruction printInstruction(String[] tokens) { assert tokens[0].equals("PRINT"); assert tokens.length > 1;
+  return new PrintInstruction(Arrays.stream(tokens).skip(1).toList());
 }
 
-private static Instruction storeInstruction(String[] tokens, Scope scope) { assert tokens[0].equals("STORE"); assert tokens[1].equals("IN");
+private Instruction storeInstruction(String[] tokens, Scope scope) { assert tokens[0].equals("STORE"); assert tokens[1].equals("IN");
   var target = scope.getOrDie(tokens[2]);
   var source = Arrays.stream(tokens).skip(3).collect(Collectors.joining(" "));
-  pre_validate: { target.set(scope.symbol(source).map(Object.class::cast).orElse(source)); }
-  return __ -> {
-    target.set(__.symbol(source).map(Object.class::cast).orElse(source));
-    return null;
-  };
+  var lazyV  = scope.symbol(source).<Supplier<Object>> map(v -> v::get).orElse(() -> source);
+  return new StoreInstruction(target, lazyV);
 }
 
-private static Instruction computeInstruction(String[] tokens, Scope scope) { assert tokens[0].equals("COMPT"); assert tokens[1].equals("IN");
+private Instruction computeInstruction(String[] tokens, Scope scope) { assert tokens[0].equals("COMPT"); assert tokens[1].equals("IN");
   var target     = scope.getOrDie(tokens[2]);
-  var base       = scope.getOrDie(tokens[3]);
   var parameters = Arrays.stream(tokens).skip(5).map(scope::getOrDie).toList();
-  var operator   = tokens[4];
-  return __ -> new ComputeEvent(target, base, operator, parameters);
+  var operator   = scope.getOrDie(tokens[3]).sendBinding(tokens[4]);
+  return new ComptInstruction(target, operator, parameters);
 }
 
-private static Instruction callInstruction(String[] tokens, Scope scope) { assert tokens[0].equals("CALL");
+private Instruction callInstruction(String[] tokens, Scope scope) { assert tokens[0].equals("CALL");
   Function<String, List<VariableBinding>> f = t -> IntStream
                        .range(0, (tokens.length-2)/3).mapToObj(i -> IntStream.range(0, 3).map(j -> j+2+(i*3)).mapToObj(j -> tokens[j]).toArray(String[]::new))
                        .filter(arr -> t.equals(arr[1]))
                        .map(arr -> new VariableBinding(arr[0], arr[2])).toList();
   
   var childProgramName = tokens[1];
-  return __ -> new CallEvent(childProgramName, f.apply(">>"), f.apply("<<"));
+  return new CallInstruction(childProgramName, f.apply(">>"), f.apply("<<"));
 }
 
 /******************************************************************** */
@@ -274,22 +269,32 @@ private Map<String, Object> run(Program masterProgram, Map<String, ?> arguments)
     var paragraph   = plan.paragraph();
     var instrIndex  = plan.instrIndex();                                   if(instrIndex >= paragraph.instructions().size()) continue;
     var scope       = plan.program().scope();
-    var maybeEvent  = paragraph.instructions().get(instrIndex).run(scope);
+    var instr       = paragraph.instructions().get(instrIndex);
 
-    if(maybeEvent instanceof JumpEvent jumpEvent && jumpEvent.withRehook())
-      planning.push(new ExecutionPlan(program, paragraph, instrIndex));
-    else
+    if(instr instanceof JumpInstruction jmpInstr) {
+      if(jmpInstr.shouldJump.get()) {
+        if(jmpInstr.withRehook()) {
+          planning.push(new ExecutionPlan(program, paragraph, instrIndex));
+        } else {
+          planning.push(new ExecutionPlan(program, paragraph, instrIndex+1));
+        }
+        planning.push(new ExecutionPlan(program, program.paragraph(jmpInstr.paragraphName()), 0));
+      } else {
+        planning.push(new ExecutionPlan(program, paragraph, instrIndex+1));
+      }
+    } else {
       planning.push(new ExecutionPlan(program, paragraph, instrIndex+1));
-
-    if(maybeEvent != null) {
-      if (maybeEvent instanceof JumpEvent    __) { planning.push(new ExecutionPlan(program, program.paragraph(__.paragraphName()), 0));}                                                                                 else
-      if (maybeEvent instanceof PrintEvent   __) { System.out.print(__.message().stream().collect(Collectors.joining(" "))); }                                                                 else
-      if (maybeEvent instanceof CallEvent    __) { var childProgram = getProgram(__.childProgramName());
-                                                   var inputs = __.in().stream().collect(Collectors.toMap(VariableBinding::childSymb, binding -> scope.getOrDie(binding.parentSymb()).get()));
-                                                   var outputs = run(childProgram, inputs);
-                                                   for(var key: __.out()) program.scope().getOrDie(key.parentSymb()).set(outputs.get(key.childSymb())); }                                       else
-      if (maybeEvent instanceof ComputeEvent __) { __.target().set(__.source().send(__.operator(), __.parameters().toArray())); }
     }
+
+    if (instr instanceof JumpInstruction  __);                                                                                 else
+    if (instr instanceof StoreInstruction __) { __.target().set(__.lazyValue().get()); } else
+    if (instr instanceof PrintInstruction __) { System.out.print(__.message().stream().map(token -> scope.symbol(token).map(Object::toString).orElse(token))
+                                                     .map(token -> "\\n".equals(token) ? System.lineSeparator() : token).collect(Collectors.joining(" "))); }                                     else
+    if (instr instanceof CallInstruction  __) { var childProgram = getProgram(__.childProgramName());
+                                                     var inputs = __.in().stream().collect(Collectors.toMap(VariableBinding::childSymb, binding -> scope.getOrDie(binding.parentSymb()).get()));
+                                                     var outputs = run(childProgram, inputs);
+                                                     for(var key: __.out()) program.scope().getOrDie(key.parentSymb()).set(outputs.get(key.childSymb())); }                                       else
+    if (instr instanceof ComptInstruction __) { __.target().set(__.binding().apply(__.parameters().toArray())); }
   }
 
   return masterProgram.getDeclaredOutputs().stream().collect(Collectors.toMap(outToken -> outToken, outToken -> masterProgram.scope().getOrDie(outToken).get()));

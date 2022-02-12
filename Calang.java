@@ -271,13 +271,13 @@ private Map<String, Object> run(Program masterProgram, Map<String, ?> arguments)
       planning.push(new ExecutionPlan(program, paragraph, instrIndex+1));
 
     if(maybeEvent != null) {
-      if (maybeEvent instanceof JumpEvent    jumpEvent   ) { planning.push(new ExecutionPlan(program, program.paragraph(jumpEvent.paragraphName()), 0));}                                                                                 else
-      if (maybeEvent instanceof PrintEvent   printEvent  ) { System.out.print(printEvent.message().stream().collect(Collectors.joining(" "))); }                                                                 else
-      if (maybeEvent instanceof CallEvent    callEvent   ) { var childProgram = getProgram(callEvent.childProgramName());
-                                                             var inputs = callEvent.in().stream().collect(Collectors.toMap(VariableBinding::childSymb, binding -> scope.getOrDie(binding.parentSymb()).get()));
-                                                             var outputs = run(childProgram, inputs);
-                                                             for(var key: callEvent.out()) program.scope().getOrDie(key.parentSymb()).set(outputs.get(key.childSymb())); }                                       else
-      if (maybeEvent instanceof ComputeEvent computeEvent) { computeEvent.target().set(computeEvent.source().send(computeEvent.operator(), computeEvent.parameters().toArray())); }
+      if (maybeEvent instanceof JumpEvent    __) { planning.push(new ExecutionPlan(program, program.paragraph(__.paragraphName()), 0));}                                                                                 else
+      if (maybeEvent instanceof PrintEvent   __) { System.out.print(__.message().stream().collect(Collectors.joining(" "))); }                                                                 else
+      if (maybeEvent instanceof CallEvent    __) { var childProgram = getProgram(__.childProgramName());
+                                                   var inputs = __.in().stream().collect(Collectors.toMap(VariableBinding::childSymb, binding -> scope.getOrDie(binding.parentSymb()).get()));
+                                                   var outputs = run(childProgram, inputs);
+                                                   for(var key: __.out()) program.scope().getOrDie(key.parentSymb()).set(outputs.get(key.childSymb())); }                                       else
+      if (maybeEvent instanceof ComputeEvent __) { __.target().set(__.source().send(__.operator(), __.parameters().toArray())); }
     }
   }
 

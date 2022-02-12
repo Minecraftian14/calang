@@ -7,7 +7,7 @@ import java.nio.file.*;
 public class Calang { protected Calang() { this(""); } protected Calang(String basePath) { assert basePath.isEmpty() || basePath.endsWith("/"); this.basePath = basePath;
   TOKENS = new HashMap<>(Map.of(
     "INTEGER", IntegerValue::new, "BYTES", BytesValue::new, "BOOLEAN", BooleanValue::new
-  )); OPERATORS = new HashMap<Class, Map>();
+  )); OPERATORS = new HashMap<Class<? extends TypedValue<?/*T*/,?>>, Map<String, Operator<?/*T*/>>>();
   { class Accessor { Stream<Integer> get(Object[] args) { return get(args, 0, args.length); } Stream<Integer> get(Object[] args, int start, int size) { return Arrays.stream(args).skip(start).limit(size).map(i -> new IntegerValue(i, Calang.this)).map(IntegerValue::get); } }
     addOperator(IntegerValue.class, "-"   , (v, args) -> new IntegerValue(v.get().intValue() - new Accessor().get(args).mapToInt(Integer::intValue).sum(), Calang.this) );
     addOperator(IntegerValue.class, "+"   , (v, args) -> new IntegerValue(v.get().intValue() + new Accessor().get(args).mapToInt(Integer::intValue).sum(), Calang.this) );
@@ -20,7 +20,7 @@ public class Calang { protected Calang() { this(""); } protected Calang(String b
 }
 private final String basePath;
 private Map<String, Function<Calang, TypedValue<?,?>>> TOKENS;
-private Map<Class, Map/*String , Operator*/> OPERATORS;
+private Map<Class<? extends TypedValue<?,?>>, Map<String, Operator<?>>> OPERATORS;
 
 private enum Rejections {
   NO_PARAGRAPH_FOUND                   ("There is no paragraph in the program.. That's unfortunate"                    ),
@@ -46,7 +46,7 @@ public final void addType(String typeIdentifier, Function<Calang, TypedValue<?,?
 @SuppressWarnings("unchecked")
 public final <T extends TypedValue<T, ?>> void addOperator(Class<T> clz, String operatorName, Operator<T> operator) {
   if (OPERATORS.containsKey(clz)) {
-    var ops = (Map<String, Operator>) OPERATORS.get(clz);
+    var ops = (Map<String, Operator<T>>)(Map) OPERATORS.get(clz);
     ops.put(operatorName, operator);
   } else {
     OPERATORS.put(clz, new HashMap<>());
@@ -55,7 +55,7 @@ public final <T extends TypedValue<T, ?>> void addOperator(Class<T> clz, String 
 }
 @SuppressWarnings("unchecked")
 public final <T extends TypedValue<T, ?>> Map<String, Operator<T>> getOperators(Class<T> clz) {
-  var operators = (Map<String, Operator<T>>) OPERATORS.get(clz);
+  var operators = (Map<String, Operator<T>>)(Map) OPERATORS.get(clz);
   return operators == null ? Collections.emptyMap() : operators;
 }
 
@@ -132,9 +132,9 @@ private static interface Program {
 @FunctionalInterface private static interface Paragraph   { List<Instruction> instructions();          }
 @FunctionalInterface private static interface Instruction { Event run(Scope scope);              }
 
-private static Instruction getInstruction(String line)
+private static Instruction getInstruction(String line, Map<String, TypedValue<?,?>> variables)
 {
-  if (line.startsWith("  ")) return getInstruction(line.substring(2));
+  if (line.startsWith("  ")) return getInstruction(line.substring(2), variables);
   assert line.indexOf(" ") > 0 : "Malformed instruction line |%s|".formatted(line);
   var tokens = line.trim().split("\s+");
   return switch(tokens[0]) {
@@ -215,32 +215,43 @@ private Program getProgram(String programName) {
 }
 
 private Program parse(List<String> lines) { assert lines.stream().noneMatch(String::isBlank);
-  var variables = new HashMap<String, TypedValue<?,?>>();
-  var inputs = new ArrayList<String>();
-  var outputs = new ArrayList<String>();
-  lines.stream().takeWhile(l -> l.startsWith("DECLARE")).forEach(line -> {
-    var tokens = line.trim().split("\s+"); assert tokens[0].equals("DECLARE");
-    var varName = tokens[tokens.length - 2];
-    var varType = tokens[tokens.length - 1];
-    var variable = Objects.requireNonNull(TOKENS.get(varType), "Unable to resolve type %s".formatted(varType)).apply(this);
-    variables.put(varName, variable);
-    if (tokens.length == 4) {
-      if("INPUT" .equals(tokens[1])) inputs.add(varName) ; else
-      if("OUTPUT".equals(tokens[1])) outputs.add(varName);
-    }
-  });
+  HashMap<String, TypedValue<?,?>> variables; ArrayList<String> inputs; ArrayList<String> outputs; {
+    variables = new HashMap<>();
+    inputs = new ArrayList<>();
+    outputs = new ArrayList<>();
+    lines.stream().takeWhile(l -> l.startsWith("DECLARE")).forEach(line -> {
+      var tokens = line.trim().split("\s+"); assert tokens[0].equals("DECLARE");
+      var varName = tokens[tokens.length - 2];
+      var varType = tokens[tokens.length - 1];
+      var variable = Objects.requireNonNull(TOKENS.get(varType), "Unable to resolve type %s".formatted(varType)).apply(this);
+      variables.put(varName, variable);
+      if (tokens.length == 4) {
+        if("INPUT" .equals(tokens[1])) inputs.add(varName) ; else
+        if("OUTPUT".equals(tokens[1])) outputs.add(varName);
+      }
+    });
+  }
+
   record Par(int lineIndex, String name, List<Instruction> instructions) implements Paragraph {}
-  var paragraphs = IntStream.range(0, lines.size()).dropWhile(i -> lines.get(i).startsWith("DECLARE"))
-           .filter(i -> !lines.get(i).startsWith("  "))
-           .mapToObj(i -> new Par(i, lines.get(i).substring(0, lines.get(i).length()-1),
+  List<Par> paragraphs; Par headParagraph; {
+    class InstructionChecker {
+      Instruction instructionOrDie(String line) {
+        return getInstruction(line, variables);
+      }
+    } var checker = new InstructionChecker();
+    paragraphs = IntStream.range(0, lines.size()).dropWhile(i -> lines.get(i).startsWith("DECLARE"))
+                 .filter(i -> !lines.get(i).startsWith("  "))
+                 .mapToObj(i -> new Par(i, lines.get(i).substring(0, lines.get(i).length()-1),
                                   IntStream.range(i+1, lines.size()).takeWhile(j -> lines.get(j).startsWith("  "))
-                                           .mapToObj(lines::get).map(Calang::getInstruction).toList()
-           )).sorted(Comparator.comparing(Par::name)).toList();
-  var headParagraph = paragraphs.stream().min(Comparator.comparingInt(Par::lineIndex)).orElseThrow(() -> Rejections.NO_PARAGRAPH_FOUND.error());
+                                           .mapToObj(lines::get).map(checker::instructionOrDie).toList()
+                 )).sorted(Comparator.comparing(Par::name)).toList();
+
+    headParagraph = paragraphs.stream().min(Comparator.comparingInt(Par::lineIndex)).orElseThrow(() -> Rejections.NO_PARAGRAPH_FOUND.error());
+  }
 
   return new Program() {
-    public String       headParagraphName  ()            { return headParagraph().name(); }
-    public Par          headParagraph      ()            { return headParagraph; }
+    public String       headParagraphName  ()            { return headParagraph.name(); }
+    public Paragraph    headParagraph      ()            { return headParagraph; }
     public Paragraph    paragraph          (String name) { return paragraphs.stream().filter(__ -> __.name().equals(name)).findFirst().orElseThrow(() -> Rejections.UNDEFINED_PARAGRAPH.error(name)); }
     public Scope        scope              ()            { return symbName -> Optional.ofNullable(variables.get(symbName)); }
     public List<String> getDeclaredOutputs ()            { return outputs; }

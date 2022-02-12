@@ -113,12 +113,53 @@ protected byte[] asCalangBytes(Object v) { return new BytesValue(this).with(v).g
 
 /******************************************************************** */
 
+private static sealed interface PreInstruction permits PreJumpInstruction, PrePrintInstruction, PreStoreInstruction, PreCallInstruction, PreComptInstruction { Instruction getInstruction(Scope scope); }
+private static record PreJumpInstruction  (String paragraphName, String booleanValueSymbol, boolean isLoop) implements PreInstruction {
+  private Supplier<Boolean> lazyValue(Scope scope) {
+    if(booleanValueSymbol == null)
+      return () -> Boolean.TRUE;
+    var variable = scope.getOrDie(booleanValueSymbol);
+    if(!(variable instanceof BooleanValue))
+      throw Rejections.BOOLEAN_FLAG_IS_NOT_BOOLEAN.error(booleanValueSymbol, variable);
+    return ((BooleanValue) variable)::get;
+  }
+  @Override public JumpInstruction getInstruction(Scope scope) {
+    return new JumpInstruction(paragraphName, lazyValue(scope), isLoop);
+  }
+}
+private static record PreStoreInstruction (String targetSymbol, String sourceSymbol) implements PreInstruction {
+  @Override public StoreInstruction getInstruction(Scope scope) {
+    var target = scope.getOrDie(targetSymbol);
+    var lazyV  = scope.symbol(sourceSymbol).<Supplier<Object>> map(v -> v::get).orElse(this::sourceSymbol);
+    return new StoreInstruction(target, lazyV);
+  }
+}
+private static record PrePrintInstruction (List<String> message) implements PreInstruction {
+  @Override public PrintInstruction getInstruction(Scope scope) {
+    return new PrintInstruction(message);
+  }
+}
+private static record PreComptInstruction (String targetSymbol, String baseSymbol, String operator, List<String> parameterSymbols) implements PreInstruction {
+  @Override public ComptInstruction getInstruction(Scope scope) {
+    var target     = scope.getOrDie(targetSymbol);
+    var parameters = parameterSymbols.stream().map(scope::getOrDie).toList();
+    var op         = scope.getOrDie(baseSymbol).sendBinding(operator);
+    return new ComptInstruction(target, op, parameters);
+  }
+}
+private static record PreCallInstruction  (String childProgramName, List<VariableBinding> in, List<VariableBinding> out) implements PreInstruction {
+  @Override public CallInstruction getInstruction(Scope scope) {
+    return new CallInstruction(childProgramName, in, out);
+  }
+} static record VariableBinding(String parentSymb, String childSymb) {}  
+
+
 private static sealed interface Instruction permits JumpInstruction, PrintInstruction, StoreInstruction, CallInstruction, ComptInstruction {}
-private static record JumpInstruction  (String paragraphName, Supplier<Boolean> shouldJump, boolean withRehook)                                    implements Instruction {}
+private static record JumpInstruction  (String paragraphName, Supplier<Boolean> shouldJump, boolean withRehook)                            implements Instruction {}
 private static record StoreInstruction (TypedValue<?,?> target, Supplier<Object> lazyValue)                                                implements Instruction {}
 private static record PrintInstruction (List<String> message)                                                                              implements Instruction {}
 private static record ComptInstruction (TypedValue<?,?> target, Function<Object[], Object> binding, List<TypedValue<?,?>> parameters)      implements Instruction {}
-private static record CallInstruction  (String childProgramName, List<VariableBinding> in, List<VariableBinding> out)                      implements Instruction {} static record VariableBinding(String parentSymb, String childSymb) {}  
+private static record CallInstruction  (String childProgramName, List<VariableBinding> in, List<VariableBinding> out)                      implements Instruction {}  
 
 private static interface Program {
   Paragraph    paragraph(String name);
@@ -133,66 +174,59 @@ private static interface Program {
                                                             default TypedValue<?,?>           getOrDie (String token)                                    { return getOrDie(token, () -> Rejections.UNKNOWN_VARIABLE.error(token)); }
                                                             default TypedValue<?,?>           getOrDie (String token, Supplier<AssertionError> errorLog) { return symbol(token).orElseThrow(errorLog); }
                                                                                                }
-@FunctionalInterface private static interface Paragraph   { List<Instruction> instructions();          }
+@FunctionalInterface private static interface Paragraph   { List<PreInstruction> instructions();          }
 
-private Instruction getInstruction(String line, Scope scope)
+private PreInstruction getInstruction(String line)
 {
-  if (line.startsWith("  ")) return getInstruction(line.substring(2), scope);
+  if (line.startsWith("  ")) return getInstruction(line.substring(2));
   assert line.indexOf(" ") > 0 : "Malformed instruction line |%s|".formatted(line);
   var tokens = line.trim().split("\s+");
   return switch(tokens[0]) {
-    case "PERFORM" -> performInstruction(tokens, scope);
-    case "PRINT"   -> printInstruction  (tokens       );
-    case "STORE"   -> storeInstruction  (tokens, scope);
-    case "COMPT"   -> computeInstruction(tokens, scope);
-    case "CALL"    -> callInstruction   (tokens, scope);
+    case "PERFORM" -> performInstruction(tokens);
+    case "PRINT"   -> printInstruction  (tokens);
+    case "STORE"   -> storeInstruction  (tokens);
+    case "COMPT"   -> computeInstruction(tokens);
+    case "CALL"    -> callInstruction   (tokens);
     default        -> throw Rejections.UNRECOGNIZED_INSTRUCTION_TOKEN.error(tokens[0]);
   };
 }
 
-private Instruction performInstruction(String[] tokens, Scope scope) { assert tokens[0].equals("PERFORM");
+private PreInstruction performInstruction(String[] tokens) { assert tokens[0].equals("PERFORM");
   return switch(tokens.length) {
-    case 2 -> new JumpInstruction(tokens[1], () -> Boolean.TRUE, false);
-    case 4 -> {
-      var variable = scope.getOrDie(tokens[3]); if(!(variable instanceof BooleanValue)) throw Rejections.BOOLEAN_FLAG_IS_NOT_BOOLEAN.error(tokens[3], variable);
-      yield new JumpInstruction(tokens[1], ((BooleanValue) variable)::get,
-        switch(tokens[2]) {
-          case "IF"    -> false;
-          case "WHILE" -> true;
-          default      -> throw Rejections.UNRECOGNIZED_PERFORM_DECORATOR.error(tokens[2]);
-        }
-      );
-    }
+    case 2 -> new PreJumpInstruction(tokens[1], null, false);
+    case 4 -> new PreJumpInstruction(tokens[1], tokens[3],
+      switch(tokens[2]) {
+        case "IF"    -> false;
+        case "WHILE" -> true;
+        default      -> throw Rejections.UNRECOGNIZED_PERFORM_DECORATOR.error(tokens[2]);
+      }
+    );
     default -> throw Rejections.MALFORMED_PERFORM_INSTRUCTION.error(Arrays.toString(tokens));
   };
 }
 
-private Instruction printInstruction(String[] tokens) { assert tokens[0].equals("PRINT"); assert tokens.length > 1;
-  return new PrintInstruction(Arrays.stream(tokens).skip(1).toList());
+private PreInstruction printInstruction(String[] tokens) { assert tokens[0].equals("PRINT"); assert tokens.length > 1;
+  return new PrePrintInstruction(Arrays.stream(tokens).skip(1).toList());
 }
 
-private Instruction storeInstruction(String[] tokens, Scope scope) { assert tokens[0].equals("STORE"); assert tokens[1].equals("IN");
-  var target = scope.getOrDie(tokens[2]);
-  var source = Arrays.stream(tokens).skip(3).collect(Collectors.joining(" "));
-  var lazyV  = scope.symbol(source).<Supplier<Object>> map(v -> v::get).orElse(() -> source);
-  return new StoreInstruction(target, lazyV);
+private PreInstruction storeInstruction(String[] tokens) { assert tokens[0].equals("STORE"); assert tokens[1].equals("IN");
+  return new PreStoreInstruction(tokens[2], Arrays.stream(tokens).skip(3).collect(Collectors.joining(" ")));
 }
 
-private Instruction computeInstruction(String[] tokens, Scope scope) { assert tokens[0].equals("COMPT"); assert tokens[1].equals("IN");
-  var target     = scope.getOrDie(tokens[2]);
-  var parameters = Arrays.stream(tokens).skip(5).map(scope::getOrDie).toList();
-  var operator   = scope.getOrDie(tokens[3]).sendBinding(tokens[4]);
-  return new ComptInstruction(target, operator, parameters);
+private PreInstruction computeInstruction(String[] tokens) { assert tokens[0].equals("COMPT"); assert tokens[1].equals("IN");
+  var target     = tokens[2];
+  var base       = tokens[3];
+  var operator   = tokens[4];
+  var parameters = Arrays.stream(tokens).skip(5).toList();
+  return new PreComptInstruction(target, base, operator, parameters);
 }
 
-private Instruction callInstruction(String[] tokens, Scope scope) { assert tokens[0].equals("CALL");
+private PreInstruction callInstruction(String[] tokens) { assert tokens[0].equals("CALL");
   Function<String, List<VariableBinding>> f = t -> IntStream
                        .range(0, (tokens.length-2)/3).mapToObj(i -> IntStream.range(0, 3).map(j -> j+2+(i*3)).mapToObj(j -> tokens[j]).toArray(String[]::new))
                        .filter(arr -> t.equals(arr[1]))
                        .map(arr -> new VariableBinding(arr[0], arr[2])).toList();
-  
-  var childProgramName = tokens[1];
-  return new CallInstruction(childProgramName, f.apply(">>"), f.apply("<<"));
+  return new PreCallInstruction(tokens[1], f.apply(">>"), f.apply("<<"));
 }
 
 /******************************************************************** */
@@ -227,18 +261,21 @@ private Program parse(List<String> lines) { assert lines.stream().noneMatch(Stri
   }
   Scope scope = symbName -> Optional.ofNullable(variables.get(symbName));
 
-  record Par(int lineIndex, String name, List<Instruction> instructions) implements Paragraph {}
+  record Par(int lineIndex, String name, List<PreInstruction> instructions) implements Paragraph {}
+
   List<Par> paragraphs; Par headParagraph; {
     class InstructionChecker {
-      Instruction instructionOrDie(String line) {
-        return getInstruction(line, scope);
+      PreInstruction checkedPreInstruction(String line) {
+        var preInstruction = getInstruction(line);
+        assert preInstruction.getInstruction(scope) != null;
+        return preInstruction;
       }
     } var checker = new InstructionChecker();
     paragraphs = IntStream.range(0, lines.size()).dropWhile(i -> lines.get(i).startsWith("DECLARE"))
                  .filter(i -> !lines.get(i).startsWith("  "))
                  .mapToObj(i -> new Par(i, lines.get(i).substring(0, lines.get(i).length()-1),
                                   IntStream.range(i+1, lines.size()).takeWhile(j -> lines.get(j).startsWith("  "))
-                                           .mapToObj(lines::get).map(checker::instructionOrDie).toList()
+                                           .mapToObj(lines::get).map(checker::checkedPreInstruction).toList()
                  )).sorted(Comparator.comparing(Par::name)).toList();
 
     headParagraph = paragraphs.stream().min(Comparator.comparingInt(Par::lineIndex)).orElseThrow(() -> Rejections.NO_PARAGRAPH_FOUND.error());
@@ -269,7 +306,7 @@ private Map<String, Object> run(Program masterProgram, Map<String, ?> arguments)
     var paragraph   = plan.paragraph();
     var instrIndex  = plan.instrIndex();                                   if(instrIndex >= paragraph.instructions().size()) continue;
     var scope       = plan.program().scope();
-    var instr       = paragraph.instructions().get(instrIndex);
+    var instr       = paragraph.instructions().get(instrIndex).getInstruction(scope);
 
     if(instr instanceof JumpInstruction jmpInstr) {
       if(jmpInstr.shouldJump.get()) {
@@ -284,17 +321,17 @@ private Map<String, Object> run(Program masterProgram, Map<String, ?> arguments)
       }
     } else {
       planning.push(new ExecutionPlan(program, paragraph, instrIndex+1));
+
+      if (instr instanceof StoreInstruction __) { __.target().set(__.lazyValue().get()); } else
+      if (instr instanceof PrintInstruction __) { System.out.print(__.message().stream().map(token -> scope.symbol(token).map(Object::toString).orElse(token))
+                                                  .map(token -> "\\n".equals(token) ? System.lineSeparator() : token).collect(Collectors.joining(" "))); }                                     else
+      if (instr instanceof CallInstruction  __) { var childProgram = getProgram(__.childProgramName());
+                                                  var inputs = __.in().stream().collect(Collectors.toMap(VariableBinding::childSymb, binding -> scope.getOrDie(binding.parentSymb()).get()));
+                                                  var outputs = run(childProgram, inputs);
+                                                  for(var key: __.out()) program.scope().getOrDie(key.parentSymb()).set(outputs.get(key.childSymb())); }                                       else
+      if (instr instanceof ComptInstruction __) { __.target().set(__.binding().apply(__.parameters().toArray())); }
     }
 
-    if (instr instanceof JumpInstruction  __);                                                                                 else
-    if (instr instanceof StoreInstruction __) { __.target().set(__.lazyValue().get()); } else
-    if (instr instanceof PrintInstruction __) { System.out.print(__.message().stream().map(token -> scope.symbol(token).map(Object::toString).orElse(token))
-                                                     .map(token -> "\\n".equals(token) ? System.lineSeparator() : token).collect(Collectors.joining(" "))); }                                     else
-    if (instr instanceof CallInstruction  __) { var childProgram = getProgram(__.childProgramName());
-                                                     var inputs = __.in().stream().collect(Collectors.toMap(VariableBinding::childSymb, binding -> scope.getOrDie(binding.parentSymb()).get()));
-                                                     var outputs = run(childProgram, inputs);
-                                                     for(var key: __.out()) program.scope().getOrDie(key.parentSymb()).set(outputs.get(key.childSymb())); }                                       else
-    if (instr instanceof ComptInstruction __) { __.target().set(__.binding().apply(__.parameters().toArray())); }
   }
 
   return masterProgram.getDeclaredOutputs().stream().collect(Collectors.toMap(outToken -> outToken, outToken -> masterProgram.scope().getOrDie(outToken).get()));

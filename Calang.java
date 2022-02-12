@@ -33,7 +33,8 @@ private enum Rejections {
   UNRECOGNIZED_PERFORM_DECORATOR       ("Unrecognized <PERFORM> instruction decorator %s"                              ),
   MALFORMED_PERFORM_INSTRUCTION        ("Malformed expression PERFORM |%s|"                                            ),
   UNSUPPORTED_FROM_BYTES_CONVERSION    ("Unsupported from-bytes conversion on %s"                                      ),
-  UNSUPPORTED_FROM_OBJECT_CONVERSION   ("Unsupported from-object conversion on %s for source |%s|"                     )
+  UNSUPPORTED_FROM_OBJECT_CONVERSION   ("Unsupported from-object conversion on %s for source |%s|"                     ),
+  BOOLEAN_FLAG_IS_NOT_BOOLEAN          ("Boolean flag %s is not fed with boolean typed, got %s instead"                );
   ;
   private String messageTemplate; Rejections(String tpl) { messageTemplate = tpl; }
   AssertionError error(Object... args) { return new AssertionError(messageTemplate.formatted(args)); }
@@ -77,7 +78,9 @@ public static abstract class TypedValue<S extends TypedValue<S,V> /* Fluent API:
   }
   protected V convertFromBytes(byte[] data)               { throw Rejections.UNSUPPORTED_FROM_BYTES_CONVERSION.error(this); }
   protected V convertFromObject(Object v)                 { throw Rejections.UNSUPPORTED_FROM_OBJECT_CONVERSION.error(this, v); }
-  public Object send(String operatorName, Object... args) { if(operators.containsKey(operatorName)) return operators.get(operatorName).apply(self(), args); throw Rejections.UNSUPPORTED_OPERATOR.error(operatorName, this); }
+  public Object send(String operatorName, Object... args) { return sendBinding(operatorName).apply(args); }
+  
+  public Function<Object[], Object> sendBinding(String operatorName) { if(operators.containsKey(operatorName)) { var self = self(); var op = operators.get(operatorName); return __ -> op.apply(self, __); } throw Rejections.UNSUPPORTED_OPERATOR.error(operatorName, this); }
   
   public final S      with      (Object v) { set(v); return self(); }
   public       String toString  ()         { return new String(bytesValue()); }
@@ -132,29 +135,29 @@ private static interface Program {
 @FunctionalInterface private static interface Paragraph   { List<Instruction> instructions();          }
 @FunctionalInterface private static interface Instruction { Event run(Scope scope);              }
 
-private static Instruction getInstruction(String line, Map<String, TypedValue<?,?>> variables)
+private static Instruction getInstruction(String line, Scope scope)
 {
-  if (line.startsWith("  ")) return getInstruction(line.substring(2), variables);
+  if (line.startsWith("  ")) return getInstruction(line.substring(2), scope);
   assert line.indexOf(" ") > 0 : "Malformed instruction line |%s|".formatted(line);
   var tokens = line.trim().split("\s+");
   return switch(tokens[0]) {
-    case "PERFORM" -> performInstruction(tokens);
-    case "PRINT"   -> printInstruction(tokens);
-    case "STORE"   -> storeInstruction(tokens);
-    case "COMPT"   -> computeInstruction(tokens);
-    case "CALL"    -> callInstruction(tokens);
+    case "PERFORM" -> performInstruction(tokens, scope);
+    case "PRINT"   -> printInstruction  (tokens       );
+    case "STORE"   -> storeInstruction  (tokens, scope);
+    case "COMPT"   -> computeInstruction(tokens, scope);
+    case "CALL"    -> callInstruction   (tokens, scope);
     default        -> throw Rejections.UNRECOGNIZED_INSTRUCTION_TOKEN.error(tokens[0]);
   };
 }
 
-private static Instruction performInstruction(String[] tokens) { assert tokens[0].equals("PERFORM");
+private static Instruction performInstruction(String[] tokens, Scope scope) { assert tokens[0].equals("PERFORM");
   return switch(tokens.length) {
-    case 2 -> scope -> new JumpEvent(tokens[1]);
+    case 2 -> __ -> new JumpEvent(tokens[1]);
     case 4 -> {
-      var testSymbol = tokens[3];
+      var variable = scope.getOrDie(tokens[3]); if(!(variable instanceof BooleanValue)) throw Rejections.BOOLEAN_FLAG_IS_NOT_BOOLEAN.error(tokens[3], variable);
       yield switch(tokens[2]) {
-        case "IF"    -> scope -> Boolean.FALSE.equals(scope.getOrDie(testSymbol).get()) ? null : new JumpEvent(tokens[1]);
-        case "WHILE" -> scope -> Boolean.FALSE.equals(scope.getOrDie(testSymbol).get()) ? null : new JumpEvent(tokens[1], true);
+        case "IF"    -> __ -> Boolean.FALSE.equals(variable.get()) ? null : new JumpEvent(tokens[1]);
+        case "WHILE" -> __ -> Boolean.FALSE.equals(variable.get()) ? null : new JumpEvent(tokens[1], true);
         default      -> throw Rejections.UNRECOGNIZED_PERFORM_DECORATOR.error(tokens[2]);
       };
     }
@@ -169,36 +172,32 @@ private static Instruction printInstruction(String[] tokens) { assert tokens[0].
   );
 }
 
-private static Instruction storeInstruction(String[] tokens) { assert tokens[0].equals("STORE"); assert tokens[1].equals("IN");
-  var target = tokens[2];
+private static Instruction storeInstruction(String[] tokens, Scope scope) { assert tokens[0].equals("STORE"); assert tokens[1].equals("IN");
+  var target = scope.getOrDie(tokens[2]);
   var source = Arrays.stream(tokens).skip(3).collect(Collectors.joining(" "));
-  return scope -> {
-    scope.getOrDie(target).set(scope.symbol(source).map(Object.class::cast).orElse(source));
+  pre_validate: { target.set(scope.symbol(source).map(Object.class::cast).orElse(source)); }
+  return __ -> {
+    target.set(__.symbol(source).map(Object.class::cast).orElse(source));
     return null;
   };
 }
 
-private static Instruction computeInstruction(String[] tokens) { assert tokens[0].equals("COMPT"); assert tokens[1].equals("IN");
-  var target = tokens[2];
-  var base = tokens[3];
-  var operator = tokens[4];
-  var parameters = Arrays.stream(tokens).skip(5).toList();
-  return scope -> {
-    var t = scope.getOrDie(target);
-    var b = scope.getOrDie(base);
-    return new ComputeEvent(t, b, operator, parameters.stream().map(scope::getOrDie).toList());
-  };
+private static Instruction computeInstruction(String[] tokens, Scope scope) { assert tokens[0].equals("COMPT"); assert tokens[1].equals("IN");
+  var target     = scope.getOrDie(tokens[2]);
+  var base       = scope.getOrDie(tokens[3]);
+  var parameters = Arrays.stream(tokens).skip(5).map(scope::getOrDie).toList();
+  var operator   = tokens[4];
+  return __ -> new ComputeEvent(target, base, operator, parameters);
 }
 
-private static Instruction callInstruction(String[] tokens) { assert tokens[0].equals("CALL");
+private static Instruction callInstruction(String[] tokens, Scope scope) { assert tokens[0].equals("CALL");
   Function<String, List<VariableBinding>> f = t -> IntStream
                        .range(0, (tokens.length-2)/3).mapToObj(i -> IntStream.range(0, 3).map(j -> j+2+(i*3)).mapToObj(j -> tokens[j]).toArray(String[]::new))
                        .filter(arr -> t.equals(arr[1]))
                        .map(arr -> new VariableBinding(arr[0], arr[2])).toList();
-  return __ -> {
-    var childProgramName = tokens[1];
-    return new CallEvent(childProgramName, f.apply(">>"), f.apply("<<"));
-  };
+  
+  var childProgramName = tokens[1];
+  return __ -> new CallEvent(childProgramName, f.apply(">>"), f.apply("<<"));
 }
 
 /******************************************************************** */
@@ -231,12 +230,13 @@ private Program parse(List<String> lines) { assert lines.stream().noneMatch(Stri
       }
     });
   }
+  Scope scope = symbName -> Optional.ofNullable(variables.get(symbName));
 
   record Par(int lineIndex, String name, List<Instruction> instructions) implements Paragraph {}
   List<Par> paragraphs; Par headParagraph; {
     class InstructionChecker {
       Instruction instructionOrDie(String line) {
-        return getInstruction(line, variables);
+        return getInstruction(line, scope);
       }
     } var checker = new InstructionChecker();
     paragraphs = IntStream.range(0, lines.size()).dropWhile(i -> lines.get(i).startsWith("DECLARE"))
@@ -253,7 +253,7 @@ private Program parse(List<String> lines) { assert lines.stream().noneMatch(Stri
     public String       headParagraphName  ()            { return headParagraph.name(); }
     public Paragraph    headParagraph      ()            { return headParagraph; }
     public Paragraph    paragraph          (String name) { return paragraphs.stream().filter(__ -> __.name().equals(name)).findFirst().orElseThrow(() -> Rejections.UNDEFINED_PARAGRAPH.error(name)); }
-    public Scope        scope              ()            { return symbName -> Optional.ofNullable(variables.get(symbName)); }
+    public Scope        scope              ()            { return scope; }
     public List<String> getDeclaredOutputs ()            { return outputs; }
     public List<String> getDeclaredInputs  ()            { return inputs; }
   };

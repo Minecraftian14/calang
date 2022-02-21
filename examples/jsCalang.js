@@ -47,7 +47,7 @@ class TypedValue {
 
   setValue(v) {
     const value = this.value;
-    if(value.constructor == v.constructor)
+    if(value === v || value.constructor == v.constructor)
       this.value = v;
     else if (this.constructor == v.constructor)
       this.value = v.getValue();
@@ -94,6 +94,7 @@ class BooleanValue extends TypedValue {
   }
 
   static operatorTable = {
+    "NEGATE": (v, args) => BooleanValue.of(!v)
   };
 
   static newInstance() { return new BooleanValue(); }
@@ -140,9 +141,9 @@ class BytesValue extends TypedValue {
 /********************************************** */
 
 var Calang = {
-  'INTEGER': IntegerValue,
-  'BOOLEAN': BooleanValue,
-  'BYTES': BytesValue
+  'IntegerValue': IntegerValue,
+  'BooleanValue': BooleanValue,
+  'BytesValue': BytesValue
 }
 
 

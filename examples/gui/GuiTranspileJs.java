@@ -22,14 +22,7 @@ public class TranspileJs extends Calang
 /************************************************************************ */
 
 protected String transpileType(TypedValue<?,?> value) {
-  if (value instanceof IntegerValue intValue) {
-    return "Calang['INTEGER']";
-  } else if (value instanceof BooleanValue boolValue) {
-    return "Calang['BOOLEAN']";
-  } else if (value instanceof BytesValue bytesValues) {
-    return "Calang['BYTES']";
-  }
-  return super.transpileType(value);
+  return "CALANG['%s']".formatted(value.getClass().getSimpleName());
 }
 
 private String fPar(String paragraphName) {

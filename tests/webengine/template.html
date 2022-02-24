@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+    <title>password_input</title>
+
+    <script>
+window.addEventListener("load", () => {
+  var named = [...document.querySelectorAll("a")].filter(el => el.hasAttribute("name")).map(el => ({ el, name: el.getAttribute("name") }));
+  var intLs = [...document.querySelectorAll("a")].filter(el => el.hasAttribute("href")).map(el => ({ el, name: el.getAttribute("href") }))
+                                                 .filter(({name}) => name.startsWith("#")).map(({el, name}) => ({ el, name: name.substring(1) }));
+
+  intLs.forEach(({el, name}) => {
+    el.addEventListener("mouseover", () => {
+      named.filter(_ => _.name == name).forEach(({el}) => el.classList.add('highlighted'));
+    });
+    el.addEventListener("mouseout", () => {
+      named.filter(_ => _.name == name).forEach(({el}) => el.classList.remove('highlighted'));
+    });
+  });
+});
+    </script>
+
+    <style>
+body,html { font-size: 12px; font-family: Georgia }
+def:after {
+  content: ')';
+}
+def.output:after {
+  content: '>';
+}
+def:before {
+  content: '(';
+}
+def.input:before {
+  content: '<';
+}
+pre {
+  margin-left: 1em;
+  padding: 0.3em;
+  border: 1px solid #333;
+}
+a.highlighted { background-color: yellow; }
+    </style>
+</head>
+
+<body>
+
+<div>
+    <button id="tangleAction">Tangle source</button>
+    <button id="transpileAction">Transpile source</button>
+</div>
+<hr>
+
+<main>
+##__CONTENT_HERE__##
+</main>
+
+</body>
+</html>

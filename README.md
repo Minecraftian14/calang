@@ -151,57 +151,18 @@ Calang tests are, for now at least, quite constrained to development limitations
 
 ## Building Calang
 
-Hopefully, Calang comes as a single class file in an anonymous package.
-This behavior will change in future versions.
-
-You an use the `make compile` command to build Calang.
-
-## Testing on different programs
-
-### Basic and full instruction test case
-
-The Calang main repository contains two programs that you can run.
-From the `examples` directory directly, you can test a program that contains the entire set
-of Calang instructions (not necessarily built-in types).
-
-Typing
+Get the project and run the `ServerProcess#main` method from the tests folder. Make sure to declare
+an environment variable containing the absolute path to the `hcal-files` folder:
 ```
-java -ea -cp .. Example.java minimal/ prog X "Hello world"
+hcal-files = /absolute/path/website/hcal-files
 ```
-should output
+It should open a web server. You should be able to browse the Calang files (hcal files)
+by visiting programs by their name without extension:
 ```
-Main program starts initializing 
-(hey don't mind me, I'm just a dummy print) 
-(hey don't mind me, I'm just a dummy print) 
-Main program calls subprogram to get tower's height 
-Tower height is size of input = 11 
-#
-##
-###
-####
-#####
-######
-#######
-########
-#########
-##########
-###########
-End of Main program
+localhost/prog
 ```
-
-### Type system enrichment
-
-The second example illustrates type system enrichment at the level of the runtime.
-Going on `examples/filesum` and typing
-```
-java -ea -cp ../.. FileSumExample.java
-```
-should output
-```
-End of file reached. Got 
- ... 6 individuals 
- ... Total = 253 
-```
+There is currently no batch-build, but we have composed a transpiled version in the `project.out.js`.
+You can open the file `website/index.html` (out of local host: it is a detached file) to check the result.
 
 # Future of Calang
 

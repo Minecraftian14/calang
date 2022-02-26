@@ -5,18 +5,9 @@ import calang.types.TypedValue;
 import java.util.*;
 import java.util.stream.*;
 
+import static java.util.function.Predicate.not;
+
 public class TranspileJs extends Calang {
-    public TranspileJs(String basePath) {super(basePath);}
-
-    public TranspileJs() {super();}
-
-    public static void main(String... args) {
-        var basePath = args[0];
-
-        Stream.of(args).skip(1).map(new TranspileJs(basePath)::transpile).flatMap(List::stream).forEach(System.out::println);
-    }
-
-    /************************************************************************ */
 
     protected String transpileType(TypedValue<?, ?> value) {
         return "Calang['%s']".formatted(value.getClass().getSimpleName());
@@ -30,6 +21,14 @@ public class TranspileJs extends Calang {
         return "this.%s".formatted(varName);
     }
 
+    protected List<String> transpile(String programName, List<String> lines) {
+        lines = lines.stream()
+                .filter(not(String::isBlank))
+                .map(s -> s.replaceAll("[\n\r]+", ""))
+                .toList();
+        return transpile(programName, parse(lines));
+    }
+
     protected List<String> transpile(String programName, Program program) {
         var scope = program.scope();
         var inputs = new HashSet<>(program.getDeclaredInputs());
@@ -40,7 +39,7 @@ public class TranspileJs extends Calang {
             linesToWrite.add("  %s = %s.newInstance();".formatted(fVar(s), transpileType(scope.getOrDie(s))));
             if (inputs.contains(s)) linesToWrite.add("    %s.setValue(%s);".formatted(fVar(s), s));
         }
-        linesToWrite.add("};%ndef.prototype = {");
+        linesToWrite.add("};%ndef.prototype = {".formatted());
         for (var name : program.paragraphNames()) {
             linesToWrite.add("  %s: async function() {".formatted(fPar(name)));
             var paragraph = program.paragraph(name);
@@ -62,9 +61,9 @@ public class TranspileJs extends Calang {
 
         String line;
         {
-            if (isLoop) line = "while(%s.getValue()) %s();".formatted(flagName, parName);
-            else if (flagName != null) line = "if(%s.getValue()) %s();".formatted(flagName, parName);
-            else line = "%s();".formatted(parName);
+            if (isLoop) line = "while(%s.getValue()) await %s();".formatted(flagName, parName);
+            else if (flagName != null) line = "if(%s.getValue()) await %s();".formatted(flagName, parName);
+            else line = "await %s();".formatted(parName);
         }
         return Collections.singletonList(line);
     }

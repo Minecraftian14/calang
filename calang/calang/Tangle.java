@@ -5,21 +5,22 @@ import java.util.stream.*;
 import java.io.*;
 import java.nio.file.*;
 
-public class Tangle {
+public interface Tangle {
 
-    public static void main(String... args) {
-
-        var content = data();
+    default List<String> tangle(List<String> content) {
 
         var declarations = new ArrayList<String[]>();
 
         for (var line : content) {
             var segment = line;
-            while (segment.indexOf("<dfn><code>") > 0) {
-                var def = segment.substring(segment.indexOf("<dfn><code>") + "<dfn><code>".length(), segment.indexOf("</code></dfn>"));
+            while (segment.indexOf("<dfn") > 0) {
+                var def = segment.substring(segment.indexOf("<dfn") + "<dfn".length(), segment.indexOf("</code></dfn>"));
+                var marker = def.substring(0, def.indexOf("<code>"));
+                boolean isInput = marker.contains("input"), isOutput = marker.contains("output");
+                def = def.substring(def.indexOf("<code>") + "<code>".length());
                 var identifier = def.substring(0, def.indexOf(":")).trim();
                 var type = def.substring(def.indexOf(":") + 1).trim();
-                declarations.add(new String[]{identifier, type});
+                declarations.add(new String[]{isInput ? "INPUT" : isOutput ? "OUTPUT" : "", identifier, type});
                 segment = segment.substring(segment.indexOf("</dfn>"));
             }
         }
@@ -54,6 +55,10 @@ public class Tangle {
                             var target = segment.substring(segment.indexOf("<a href=\"#") + "<a href=\"#".length(), segment.indexOf("\">"));
                             references.add(target);
                             segment = "PERFORM " + target + segment.substring(segment.indexOf("</a>") + "</a>".length());
+                        } else if (segment.startsWith("CALL") && segment.contains("<a href=")) {
+                            var target = segment.substring(segment.indexOf("<a href=\"/") + "<a href=\"/".length(), segment.indexOf("\">"));
+                            references.add(target);
+                            segment = "CALL " + target + segment.substring(segment.indexOf("</a>") + "</a>".length());
                         }
                     }
                     paragraphs.get(currentParagraph).add(segment);
@@ -63,25 +68,20 @@ public class Tangle {
             mainParagraph = paragraphs.keySet().stream().filter(p -> !references.contains(p)).findAny().orElseThrow(() -> new AssertionError("Unable to identify a main paragraph"));
         }
 
+        var arr = new ArrayList<String>();
         {
             for (var d : declarations)
-                System.out.printf("DECLARE %s %s%n", d[0], d[1]);
+                arr.add("DECLARE %s %s %s%n".formatted(d[0], d[1], d[2]));
 
             var it = (Iterable<String>) Stream.concat(Stream.of(mainParagraph), paragraphs.keySet().stream()).distinct()::iterator;
             for (var p : it) {
-                System.out.printf("%n%s.%n", p);
+                arr.add("%n%s.%n".formatted(p));
                 for (var inst : paragraphs.get(p))
-                    System.out.printf("  %s%n", inst);
+                    arr.add("  %s%n".formatted(inst));
             }
         }
+        return arr;
 
-    }
-
-    private static List<String> data() {
-        try {
-            return Files.readAllLines(Paths.get("./password_input.html"));
-        }
-        catch (IOException e) {throw new UncheckedIOException(e);}
     }
 
 }

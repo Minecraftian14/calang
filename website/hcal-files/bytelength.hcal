@@ -1,0 +1,18 @@
+<section>
+  <h1>The Byte-Length program</h1>
+
+<p>Computing length of bytes chunks is of fundamental importance for
+many concrete applications. It is so fundamental, that the <code>BYTES</code>
+type should answer positively to the <code>|.|</code> message,
+by returning an <code>INTEGER</code> representing the length (size, measure)
+of the bytes chunk object it is sent to.</p>
+
+<p><a name="START">The Byte-Length program</a> simply encapsulates this call for
+academic purpose. Nothing interesting really happens:
+we compute the length of the provided <dfn class="input"><code>$CHUNK: BYTES</code></dfn>
+bytes objects into the <dfn class="output"><code>$LENGTH: INTEGER</code></dfn>
+one:</p>
+
+<pre><code>COMPT IN $LENGTH $CHUNK |.|</code></pre>
+
+</section>

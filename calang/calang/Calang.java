@@ -10,23 +10,14 @@ import calang.types.builtin.ProgramValue;
 import java.util.*;
 import java.util.function.*;
 import java.util.stream.*;
-import java.io.*;
-import java.nio.file.*;
 
 import static calang.rejections.Rejections.*;
 
 public class Calang {
-    private final String basePath;
     private final Map<String, Function<Calang, TypedValue<?, ?>>> TOKENS;
     private final Map<Class<? extends TypedValue<?, ?>>, Map<String, Operator<?>>> OPERATORS;
 
     protected Calang() {
-        this("");
-    }
-
-    protected Calang(String basePath) {
-        assert basePath.isEmpty() || basePath.endsWith("/") : CALANG_BASEPATH_IS_MALFORMED.error(basePath);
-        this.basePath = basePath;
         TOKENS = new HashMap<>(Map.of(
                 "INTEGER", IntegerValue::new,
                 "BYTES", BytesValue::new,
@@ -212,25 +203,7 @@ public class Calang {
 
     /******************************************************************** */
 
-    private final Map<String, Program> PROGRAMS = new HashMap<>();
-
-    private Program getProgram(String programName) {
-        if (!PROGRAMS.containsKey(programName)) {
-            try {
-                var lines = Files.readAllLines(Paths.get("./%s%s.calang".formatted(basePath, programName)));
-                var program = parse(lines.stream().filter(l -> !l.isBlank()).toList());
-                PROGRAMS.put(programName, program);
-            }
-            catch (IOException e) {
-                throw new UncheckedIOException(e);
-            }
-        }
-        assert PROGRAMS.containsKey(programName);
-        return PROGRAMS.get(programName);
-    }
-
-    private Program parse(List<String> lines) {
-        assert lines.stream().noneMatch(String::isBlank);
+    protected Program parse(List<String> lines) {
         HashMap<String, TypedValue<?, ?>> variables;
         ArrayList<String> inputs;
         ArrayList<String> outputs;
@@ -274,7 +247,10 @@ public class Calang {
                 }
             }
             var checker = new InstructionChecker();
-            paragraphs = IntStream.range(0, lines.size()).dropWhile(i -> lines.get(i).startsWith("DECLARE")).filter(i -> !lines.get(i).startsWith("  ")).mapToObj(i -> new Par(i, lines.get(i).substring(0, lines.get(i).length() - 1), IntStream.range(i + 1, lines.size()).takeWhile(j -> lines.get(j).startsWith("  ")).mapToObj(lines::get).map(checker::checkedPreInstruction).toList())).sorted(Comparator.comparing(Par::name)).toList();
+            paragraphs = IntStream.range(0, lines.size())
+                    .dropWhile(i -> lines.get(i).startsWith("DECLARE"))
+                    .filter(i -> !lines.get(i).startsWith("  "))
+                    .mapToObj(i -> new Par(i, lines.get(i).substring(0, lines.get(i).length() - 1), IntStream.range(i + 1, lines.size()).takeWhile(j -> lines.get(j).startsWith("  ")).mapToObj(lines::get).map(checker::checkedPreInstruction).toList())).sorted(Comparator.comparing(Par::name)).toList();
 
             headParagraph = paragraphs.stream().min(Comparator.comparingInt(Par::lineIndex)).orElseThrow(NO_PARAGRAPH_FOUND::error);
         }
@@ -313,10 +289,6 @@ public class Calang {
     }
 
     /******************************************************************** */
-
-    public List<String> transpile(String programName) {
-        return transpile(programName, getProgram(programName));
-    }
 
     protected String transpileType(TypedValue<?, ?> value) {
         throw NON_TRANSPILED_TYPE.error(value.getClass());

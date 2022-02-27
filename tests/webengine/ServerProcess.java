@@ -55,6 +55,7 @@ public class ServerProcess {
         var server = HttpServer.create(new InetSocketAddress(8080), 0);
 
         server.createContext("/toc/create", orDie(ServerProcess::handleToc));
+        server.createContext("/toc/transpile", orDie(ServerProcess::handleTranspileEntirely));
         server.createContext("/js/", orDie(ServerProcess::handleTranspile));
         server.createContext("/tangle/", orDie(ServerProcess::handleTangle));
         server.createContext("/", orDie(ServerProcess::handleMain));
@@ -89,13 +90,25 @@ public class ServerProcess {
         class FilesExplorer implements SystemFileContent {
             byte[] jsonFileList() throws IOException {
                 return hcalFileList()
-                        .map(f -> "\"%s\"".formatted(f.substring(0, f.lastIndexOf(".hcal"))))
+                        .map("\"%s\""::formatted)
                         .collect(joining(", ", "[", "]")).getBytes(UTF_8);
             }
         }
 
         var list = new FilesExplorer().jsonFileList();
         answer(exchange, list);
+    }
+
+    static void handleTranspileEntirely(HttpExchange exchange) throws IOException {
+        var response = (byte[]) null; {
+            var lines = new SystemFileContent() {}.hcalFileList()
+                    .map(new ServerTranspiler()::transpile)
+                    .flatMap(List::stream)
+                    .toList();
+            response = toBytes(lines, '\n');
+        }
+        exchange.getResponseHeaders().add("Content-Type", "text/plain; charset=UTF-8");
+        answer(exchange, response);
     }
 
     static void handleTangle(HttpExchange exchange) throws IOException {

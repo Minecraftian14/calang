@@ -49,6 +49,11 @@ function createToc() {
   });
   req.open("GET", "/toc/create");
   req.send();
+
+  var btn = document.getElementById("transpileEntirelyAction");
+  btn.addEventListener("click", () => {
+    window.location.href = '/toc/transpile';
+  });
 }
 window.addEventListener("load", () => {
     highlightEffects();
@@ -56,8 +61,6 @@ window.addEventListener("load", () => {
     bindTranspileButton();
     createToc();
 });
-
-
     </script>
 
     <style>
@@ -100,10 +103,11 @@ a.highlighted { background-color: yellow; }
 <body>
 
 <div>
+    <button id="transpileEntirelyAction">Transpile entire project</button>
+    <ul id="menu"></ul>
+
     <button id="tangleAction">Tangle source</button>
     <button id="transpileAction">Transpile source</button>
-
-    <ul id="menu"></ul>
 </div>
 <hr>
 

@@ -20,7 +20,8 @@ public interface FileContent {
         return Files.list(Paths.get(basePath()))
                 .map(Path::getFileName)
                 .map(Path::toString)
-                .filter(f -> f.endsWith(".hcal"));
+                .filter(f -> f.endsWith(".hcal"))
+                .map(f -> f.substring(0, f.lastIndexOf(".hcal")));
     }
 
     default List<String> fileContent(String programName) {

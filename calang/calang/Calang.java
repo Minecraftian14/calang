@@ -98,22 +98,40 @@ public class Calang {
 
     private PreInstruction prePerformInstruction(String[] tokens) {
         assert tokens[0].equals("PERFORM");
-        return switch (tokens.length) {
-            case 2 -> prePerformInstruction(tokens[1], null, false);
-            case 4 -> prePerformInstruction(tokens[1], tokens[3], switch (tokens[2]) {
+        var paragraphName = tokens[1];
+        var altParagraphName = (String) null;
+        var booleanFlagSymbol = (String) null;
+        var isLoop = false;
+        var contraCondition = false;
+        if(tokens.length == 2); // PERFORM [parname], defaults are ok
+        else if(tokens.length == 4) { // PERFORM [parname] [WHILE/IF] [flag]
+            booleanFlagSymbol = tokens[3];
+            isLoop = switch (tokens[2]) {
                 case "IF" -> false;
                 case "WHILE" -> true;
                 default -> throw UNRECOGNIZED_PERFORM_DECORATOR.error(tokens[2]);
-            });
-            default -> throw MALFORMED_PERFORM_INSTRUCTION.error(Arrays.toString(tokens));
-        };
+            };
+        }
+        else if(tokens.length == 5) { // PERFORM [parname] IF NOT [flag]
+            if(! (tokens[2].equals("IF") && tokens[3].equals("NOT")))
+                throw MALFORMED_PERFORM_INSTRUCTION.error(Arrays.toString(tokens));
+            booleanFlagSymbol = tokens[4];
+            contraCondition = true;
+        }
+        else if(tokens.length == 6) { // PERFORM [parname] IF [flag] ELSE [altPar]
+            if(! (tokens[2].equals("IF") && tokens[4].equals("ELSE")))
+                throw MALFORMED_PERFORM_INSTRUCTION.error(Arrays.toString(tokens));
+            booleanFlagSymbol = tokens[3];
+            altParagraphName = tokens[5];
+        }
+        return prePerformInstruction(paragraphName, altParagraphName, booleanFlagSymbol, isLoop, contraCondition);
     }
 
-    private PreInstruction prePerformInstruction(String paragraphName, String booleanValueSymbol, boolean isLoop) {
+    private PreInstruction prePerformInstruction(String paragraphName, String altParagraphName, String booleanValueSymbol, boolean isLoop, boolean contraCondition) {
         return new PreInstruction() {
             @Override
             public List<String> transpile(Scope scope) {
-                return transpilePerformInstruction(scope, paragraphName, booleanValueSymbol, isLoop);
+                return transpilePerformInstruction(scope, paragraphName, altParagraphName, booleanValueSymbol, isLoop, contraCondition);
             }
         };
     }
@@ -298,7 +316,7 @@ public class Calang {
         throw NON_TRANSPILED_PROGRAM.error(programName);
     }
 
-    protected List<String> transpilePerformInstruction(Scope scope, String paragraphName, String flagSymbol, boolean isLoop) {
+    protected List<String> transpilePerformInstruction(Scope scope, String paragraphName, String altParagraphName, String booleanValueSymbol, boolean isLoop, boolean contraCondition) {
         throw NON_TRANSPILED_INSTRUCTION.error("PERFORM");
     }
 

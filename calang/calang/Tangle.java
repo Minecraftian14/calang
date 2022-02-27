@@ -48,13 +48,21 @@ public interface Tangle {
                 if (collect) {
                     if (segment.contains("</code></pre>")) {
                         collect = false;
-                        segment = segment.substring(0, segment.indexOf("</code>"));
+                        segment = segment.substring(0, segment.indexOf("</code></pre>"));
                     }
                     {
                         if (segment.startsWith("PERFORM")) {
-                            var target = segment.substring(segment.indexOf("<a href=\"#") + "<a href=\"#".length(), segment.indexOf("\">"));
-                            references.add(target);
-                            segment = "PERFORM " + target + segment.substring(segment.indexOf("</a>") + "</a>".length());
+                            var joiner = new StringBuilder();
+                            while(segment.contains("<a")) {
+                                joiner.append(segment, 0, segment.indexOf("<a"));
+                                segment = segment.substring(segment.indexOf("<a"));
+                                var target = segment.substring(segment.indexOf("#")+1, segment.indexOf(">")).trim().replaceAll("['\"]", "");
+                                references.add(target);
+                                joiner.append(target);
+                                segment = segment.substring(segment.indexOf("</a>")+"</a>".length());
+                            }
+                            joiner.append(segment);
+                            segment = joiner.toString();
                         } else if (segment.startsWith("CALL") && segment.contains("<a href=")) {
                             var target = segment.substring(segment.indexOf("<a href=\"/") + "<a href=\"/".length(), segment.indexOf("\">"));
                             references.add(target);

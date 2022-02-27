@@ -29,6 +29,7 @@ public class TranspileJs extends Calang {
         return transpile(programName, parse(lines));
     }
 
+    @Override
     protected List<String> transpile(String programName, Program program) {
         var scope = program.scope();
         var inputs = new HashSet<>(program.getDeclaredInputs());
@@ -55,19 +56,28 @@ public class TranspileJs extends Calang {
         return linesToWrite;
     }
 
-    protected List<String> transpilePerformInstruction(Scope scope, String paragraphName, String flagSymbol, boolean isLoop) {
+    @Override
+    protected List<String> transpilePerformInstruction(Scope scope, String paragraphName, String altParagraphName, String booleanValueSymbol, boolean isLoop, boolean contraCondition) {
+        assert paragraphName != null;
         var parName = fVar(fPar(paragraphName));
-        var flagName = flagSymbol == null ? null : fVar(flagSymbol);
+        var altParName = altParagraphName == null ? null : fVar(fPar(altParagraphName));
+        var flagName = booleanValueSymbol == null ? null : fVar(booleanValueSymbol);
 
-        String line;
-        {
-            if (isLoop) line = "while(%s.getValue()) await %s();".formatted(flagName, parName);
-            else if (flagName != null) line = "if(%s.getValue()) await %s();".formatted(flagName, parName);
-            else line = "await %s();".formatted(parName);
+        String line = "await %s();".formatted(parName);
+        decorator: {
+            if(flagName == null) break decorator;
+
+            if (isLoop)
+                line = "while(%s.getValue()) %s".formatted(flagName, line);
+            else if (contraCondition)
+                line = "if(! %s.getValue()) %s".formatted(flagName, line);
+            else if (altParagraphName != null)
+                line = "if(%s.getValue()) %s else await %s();".formatted(flagName, line, altParName);
         }
         return Collections.singletonList(line);
     }
 
+    @Override
     protected List<String> transpileStoreInstruction(Scope scope, String sourceSymbol, String targetSymbol) {
         var target = fVar(targetSymbol);
         String value;
@@ -79,6 +89,7 @@ public class TranspileJs extends Calang {
         return Collections.singletonList(line);
     }
 
+    @Override
     protected List<String> transpileComptInstruction(Scope scope, String baseSymbol, String operator, List<String> arguments, String targetSymbol) {
         var target = fVar(targetSymbol);
         var base = fVar(baseSymbol);
@@ -88,12 +99,14 @@ public class TranspileJs extends Calang {
         return Collections.singletonList(line);
     }
 
+    @Override
     protected List<String> transpilePrintInstruction(Scope scope, List<String> tokens) {
         var words = tokens.stream().map(t -> scope.symbol(t).isPresent() ? "${%s.getValue()}".formatted(fVar(t)) : t).collect(Collectors.joining(" "));
         var line = "this.printer.append(`%s`);".formatted(words);
         return Collections.singletonList(line);
     }
 
+    @Override
     protected List<String> transpileCallInstruction(Scope scope, String programName, List<VariableBinding> in, List<VariableBinding> out) {
         var lines = new ArrayList<String>();
         String programIdentifier;

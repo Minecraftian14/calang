@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+    <title>password_input</title>
+
+    <script>
+function highlightEffects() {
+  var named = [...document.querySelectorAll("a")].filter(el => el.hasAttribute("name")).map(el => ({ el, name: el.getAttribute("name") }));
+  var intLs = [...document.querySelectorAll("a")].filter(el => el.hasAttribute("href")).map(el => ({ el, name: el.getAttribute("href") }))
+                                                 .filter(({name}) => name.startsWith("#")).map(({el, name}) => ({ el, name: name.substring(1) }));
+
+  intLs.forEach(({el, name}) => {
+    el.addEventListener("mouseover", () => {
+      named.filter(_ => _.name == name).forEach(({el}) => el.classList.add('highlighted'));
+    });
+    el.addEventListener("mouseout", () => {
+      named.filter(_ => _.name == name).forEach(({el}) => el.classList.remove('highlighted'));
+    });
+  });
+}
+function bindTangleButton() {
+  var location = window.location.pathname;
+  var btn = document.getElementById("tangleAction");
+  btn.addEventListener("click", () => {
+    window.location.href = `/tangle${location}`;
+  });
+}
+function bindTranspileButton() {
+  var location = window.location.pathname;
+  var btn = document.getElementById("transpileAction");
+  btn.addEventListener("click", () => {
+    window.location.href = `/js${location}`;
+  });
+}
+function createToc() {
+  var req = new XMLHttpRequest();
+  var menu = document.getElementById("menu");
+  req.addEventListener("load", e => {
+    var toc = JSON.parse(req.response);
+    toc.forEach(l => {
+      var aEl = document.createElement("a");
+      aEl.setAttribute("href", `/${l}`);
+      aEl.textContent = l;
+      var liEl = document.createElement("li");
+      liEl.appendChild(aEl);
+      menu.appendChild(liEl);
+    });
+  });
+  req.open("GET", "/toc/create");
+  req.send();
+}
+window.addEventListener("load", () => {
+    highlightEffects();
+    bindTangleButton();
+    bindTranspileButton();
+    createToc();
+});
+
+
+    </script>
+
+    <style>
+body,html { font-size: 12px; font-family: Georgia }
+dfn {
+  text-decoration: underline;
+  font-style: normal;
+}
+dfn code:after {
+  content: ')';
+}
+dfn code:before {
+  content: '(';
+}
+    dfn.input:after {
+      content: '<';
+    }
+    dfn.input:before {
+      content: '>';
+    }
+    dfn.output:after {
+      content: '>';
+    }
+    dfn.output:before {
+      content: '<';
+    }
+pre {
+  margin-left: 1em;
+  padding: 0.3em;
+  border: 1px solid #333;
+}
+pre code {
+  display: block;
+  white-space: pre;
+}
+a.highlighted { background-color: yellow; }
+    </style>
+</head>
+
+<body>
+
+<div>
+    <button id="tangleAction">Tangle source</button>
+    <button id="transpileAction">Transpile source</button>
+
+    <ul id="menu"></ul>
+</div>
+<hr>
+
+<main>
+##__CONTENT_HERE__##
+</main>
+
+</body>
+</html>

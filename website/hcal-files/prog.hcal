@@ -1,0 +1,33 @@
+<section>
+  <h1>Main program</h1>
+
+<p>This is the main program you should run.. but nobody knows that!
+The goal is to illustrate a complete Calang iteration.</p>
+
+<p>The <a name="BEGIN">main program</a> idea is quite simple: we begin to prompt the user
+a dialog box that asks for input. This is done by calling the <a href="/password_input">password input</a>
+program and storing its value in a <dfn><code>$MESSAGE: BYTES</code></dfn> variable:</p>
+
+<pre><code>CALL <a href="/password_input">password input</a> $MESSAGE << $TEXT_RECORD</code></pre>
+
+<p>We then rely on the <a href="/bytelength">bytes length</a> program to compute the
+input length and store it in a <dfn><code>$LENGTH: INTEGER</code></dfn> integer record:</p>
+
+<pre><code>CALL <a href="/bytelength">bytes length</a> $MESSAGE >> $CHUNK $LENGTH << $LENGTH</code></pre>
+
+<p>Once done, we call the <a href="/tower">print tower</a> program to print the pyramid:</p>
+
+<pre><code>CALL <a href="/tower">print tower</a> $LENGTH >> $HEIGHT</code></pre>
+
+<p>Note that those call are all made asynchronously but block the main program execution.
+This is wanted, since those calls are dependent of each others.</p>
+
+<hr>
+
+<p>If the user cancels the dialog, the behavior
+of the program is undefined. <small>(This is done on purpose, to illustrate the
+idea that Calang doesn't know about exceptions: registers shouldn't throw and as such,
+no exception should arise in the code. In particular, the developer should do
+all what's possible to wider the range of expectations they agree to manage.)</small></p>
+
+</section>

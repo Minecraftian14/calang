@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+#modalElement {
+  display: none;
+}
+#modalElement.visible {
+  display: block;
+}
+		</style>
+    <script src="./jsCalang.js"></script>
+    <script>
+/**************************************************** */
+
+function ModalElement() {
+  this.domElement = document.querySelector("#modalElement");
+} ModalElement.prototype = {
+  open: function() {
+    this.domElement.classList.add("visible");
+  },
+  close: function() {
+    this.domElement.classList.remove("visible");
+  },
+  waitForClick: function() {
+    var btnCancel = this.domElement.querySelector("button[name=btnCancel]"),
+            btnOk = this.domElement.querySelector("button[name=btnOk]");
+
+    var p = new Program();
+    p.run = () => new Promise((res, rej) => {
+      var terminate = s => {
+        res(s);
+        btnCancel.removeEventListener("click", handleCancelClick);
+        btnOk.removeEventListener("click", handleOkClick);
+      };
+      const handleOkClick = () => terminate({ $RES: true });
+      const handleCancelClick = () => terminate({ $RES: false });
+      btnCancel.addEventListener("click", handleCancelClick);
+      btnOk.addEventListener("click", handleOkClick);
+    });
+    return p;
+  },
+  getInputText: function() {
+    return this.domElement.querySelector("input[name=username]").value;
+  }
+};
+
+Calang['ModalElementValue'] = class ModalElementValue extends TypedValue {
+  constructor() {
+    super(new ModalElement(), ModalElementValue.operatorTable);
+  }
+
+  static operatorTable = {
+    "display!": (v, args) => { v.open(); return v; },
+    "close!": (v, args) => { v.close(); return v; },
+    "...": (v, args) => v.waitForClick(),
+    "?": (v, args) => v.getInputText()
+  };
+
+  static newInstance() { return new ModalElementValue(); }
+
+}
+		</script>
+    <script src="./hcal-files/project.out.js"></script>
+</head>
+
+<body>
+
+<div style="border: 1px solid black;" id="modalElement">
+    <input placeholder="Enter your username" name="username">
+    <br>
+    <button name="btnCancel">Cancel</button>
+    <button name="btnOk">Ok</button>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,64 @@
+<section>
+    <h1>Tower print program</h1>
+
+<p>This program is concerned with printing a tower of # symbols on the screen,
+based on a single input <dfn class="input"><code>$HEIGHT: INTEGER</code></dfn>.</p>
+
+<p>As an example, the output of this program for the input <code>$HEIGHT = 4</code>
+should be</p>
+<pre>#
+##
+###
+####</pre>
+
+<h2>Control flags</h2>
+
+<p>In order to iterate on the line to print and, for each line, keep track of the
+column cursor to print, we require some local variables:</p>
+<ul>
+    <li>The <dfn><code>$LOCAL_HEIGHT: INTEGER</code></dfn> is the current line
+    we draw</li>
+    <li>The <dfn><code>$CURSOR: INTEGER</code></dfn> is the current column we draw</li>
+</ul>
+<p>We also introduce a boolean flag <dfn><code>$FLAG: BOOLEAN</code></dfn>
+to keep track or whether to stop or not. <b>We draw the reader attention to</b>
+our usage of weak types here, as we are going to use the property over booleans that
+integer 0 is falsy, the others are truly.</p>
+
+<hr>
+
+<p><a name="MAIN">The main iteration</a> is fairly expected. We start at height 1 and we
+print lines until our control flag <code>$FLAG</code> remains true:</p>
+<pre><code>STORE IN $LOCAL_HEIGHT 1
+STORE IN $FLAG $HEIGHT
+PERFORM <a href="#PRINT_LINE">print line</a> WHILE $FLAG</code></pre>
+
+<p><a name="PRINT_LINE">Printing one line</a> is made in two-steps. We first
+control <a href="#PRINT_COLUMN">column printing</a>:</p>
+<pre><code>STORE IN $CURSOR 1
+STORE IN $FLAG 1
+PERFORM <a href="#PRINT_COLUMN">print column</a> WHILE $FLAG</code></pre>
+
+<p>and in a second step, we print a line break and recover the state of the control <code>$FLAG</code>
+and the auxiliary <code>$LOCAL_HEIGHT</code> helper:</p>
+
+<pre><code>PRINT \n
+COMPT IN $FLAG $HEIGHT - $LOCAL_HEIGHT
+COMPT IN $LOCAL_HEIGHT $LOCAL_HEIGHT succ</code></pre>
+
+<p>In particular, at the end of the <a href="#PRINT_LINE">print-line</a> block, we guarantee
+the boolean flag <code>$FLAG</code> contains whether or not the program should stop
+(that is, whether or not the <code>$HEIGHT</code> equals the <code>$LOCAL_HEIGHT</code>),
+and the <code>$LOCAL_HEIGHT</code> counter has been incremented by 1.</p>
+
+<p>Observe that the boolean flag <code>$FLAG</code> is reset to 1 before printing column.
+In that process, we reserve this flag for the task of <a name="PRINT_COLUMN">column printing</a>.
+More precisely, from the pre-conditions that <code>$CURSOR</code> equals 1, and
+<code>$FLAG</code> is true, printing column is defined as the process:</p>
+
+<pre><code>PRINT #
+COMPT IN $FLAG $LOCAL_HEIGHT - $CURSOR
+COMPT IN $CURSOR $CURSOR succ</code></pre>
+
+
+</section>

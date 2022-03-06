@@ -272,9 +272,5 @@ You can open the file `website/index.html` (out of local host: it is a detached 
 # Future of Calang
 
 It is likely that Calang will eventually disappear.
-In the meantime, Calang growth expectations is expected to be roughly as follows:
-
-1. version 2: improve type-safety, hoare logic (?) and assertions (?)
-2. version 3: literate programming
-3. version 4: use the abstract types and the built-in service loader to make types and operators system modular
-
+In the meantime, Calang growth expectations is expected to be roughly 
+following the issues list on Github.

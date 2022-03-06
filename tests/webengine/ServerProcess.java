@@ -20,7 +20,7 @@ public class ServerProcess {
 
     public interface SystemFileContent extends FileContent {
         default String basePath() {
-            return System.getenv("hcal-files");
+            return Objects.requireNonNull(System.getenv("hcal-files"));
         }
     }
 

@@ -22,7 +22,7 @@ column cursor to print, we require some local variables:</p>
 </ul>
 <p>We also introduce a boolean flag <dfn><code>$FLAG: BOOLEAN</code></dfn>
 to keep track or whether to stop or not. <b>We draw the reader attention to</b>
-our usage of weak types here, as we are going to use the property over booleans that
+our usage of weak calang.types here, as we are going to use the property over booleans that
 integer 0 is falsy, the others are truly.</p>
 
 <hr>

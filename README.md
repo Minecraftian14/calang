@@ -35,7 +35,7 @@ DECLARE $variable TYPE
 and must start at column 0. It declares a variable named `$variable` of type `TYPE`.
 Every variable must start by a dollar sign.
 
-Built-in types are `INTEGER`, `BOOLEAN` and `BYTES`.
+Built-in calang.types are `INTEGER`, `BOOLEAN` and `BYTES`.
 
 Variables are not initialized. Their value at program start-up is always unspecified.
 You should not rely on default values.
@@ -172,5 +172,5 @@ In the meantime, Calang growth expectations is expected to be roughly as follows
 
 1. version 2: improve type-safety, hoare logic (?) and assertions (?)
 2. version 3: literate programming
-3. version 4: use the abstract types and the built-in service loader to make types and operators system modular
+3. version 4: use the abstract calang.types and the built-in service loader to make calang.types and operators system modular
 

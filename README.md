@@ -35,10 +35,10 @@ DECLARE $variable TYPE
 and must start at column 0. It declares a variable named `$variable` of type `TYPE`.
 Every variable must start by a dollar sign.
 
-Built-in calang.types are `INTEGER`, `BOOLEAN` and `BYTES`.
+Built-in types are `INTEGER`, `BOOLEAN`, `BYTES` and `PROGRAM`.
 
 Variables are not initialized. Their value at program start-up is always unspecified.
-You should not rely on default values.
+You should never rely on default values.
 
 ### Paragraph
 
@@ -65,10 +65,14 @@ BEGIN.
 ```
 
 The first paragraph of a Calang program is *always* the main one, whatever its name.
+This paragraph must be the unique paragraph that is called by no one; in particular:
+- unused paragraphs are forbidden
+- you cannot call the main paragraph from another one
+- there must be at least one paragraph
 
 ### Jumping to paragraphs
 
-From the *main paragraph*, and *only* from the main paragraph, you can jump
+From the *main paragraph*, you can jump
 to any other paragraph:
 ```
 BEGIN.
@@ -79,7 +83,18 @@ BEGIN.
 DUMMY.
   PRINT (don't mind me)
 ```
-(Note: currently the implementation allows jumping from everywhere. This is a bad idea.)
+
+### Paragraph-oriented philosophy
+
+The idea of paragraphs is to group together instructions that have the same semantic value.
+If possible, a paragraph must have pre- and post-conditions, as well as invariants.
+This can greatly help debugging and program understanding.
+
+The main paragraph has a central role, as it is aimed at describing the main flow of the program
+(the great picture). This is more or less obvious to do, depending on the use case.
+
+All the paragraphs share the same registers of memory. They are not meant to be composed as
+independent a-contextual functions: programs serve that purpose.
 
 ## Calang Object-Oriented Principle
 
@@ -88,7 +103,8 @@ Contrary to standard perspective, objects are not described by classes;
 or at least not in a Calang way. In Calang, variables are objects and the
 way they respond to events is driven by their type.
 
-Types are atomic and part of the compiler implementation.
+**Types** are **atomic** and **part of the compiler** implementation. (In other words, they
+behave as if they were primitives, from Calang's perspective.)
 
 As an example, the built-in BYTES objects is capable of being fed by data, and
 can answer to a size `|.|` operator to feed any INTEGER object:
@@ -101,7 +117,7 @@ BEGIN.
   COMPT IN $SIZE $SENTENCE |.|
   PRINT The size of | $SENTENCE | is $SIZE
 ```
-will print *The size of | Hello :-) | is 9*.
+will print `The size of | Hello :-) | is 9`.
 
 This example must be read as follows:
 - `$SENTENCE` is a `BYTES` instance, `$SIZE` is a `INTEGER` instance.
@@ -113,11 +129,18 @@ This example must be read as follows:
 
 The way information is stored in an object state, and the way objects respond to
 stimuli (operators), are all an implementation detail of the compiler.
-The Calang NPL is a semantic phrasing of algorithms.
 
-## Calang subprograms
+### Built-in object types
+
+Calang comes with four built-in types: `INTEGER`, `BOOLEAN`, `BYTES` and `PROGRAM`.
+The operators that act on them can be enriched by the compiler.
+
+## Calang programs
 
 Programs in Calang may call other programs to achieve tasks or compute information.
+
+*Note*: a Calang `PROGRAM` object is more general than a Calang program. This section is about
+Calang program (and not about the `PROGRAM` type).
 
 A Calang program can specify its input and output fields, using decorators on the `DECLARE` keyword:
 ```
@@ -128,6 +151,12 @@ BEGIN.
   COMPT IN $A $X1 |.|
 ```
 No other change is required.
+
+In some sense, a program is as pure as it works on encapsulated data.
+This means that if every object in a Calang program are detached from a state, then
+a Calang program becomes a pure function from its inputs, to its outputs; and this pure function
+may (or not) declare additional variables for computation purposes.
+(`PRINT` doesn't count in this picture).
 
 The following example shows how a program can call the above, named `subprog`,
 by using the `CALL` statement and the `>>`, `<<` binding operators:
@@ -163,7 +192,6 @@ localhost/prog
 ```
 There is currently no batch-build, but we have composed a transpiled version in the `project.out.js`.
 You can open the file `website/index.html` (out of local host: it is a detached file) to check the result.
->>>>>>> fulljs
 
 # Future of Calang
 
@@ -172,5 +200,5 @@ In the meantime, Calang growth expectations is expected to be roughly as follows
 
 1. version 2: improve type-safety, hoare logic (?) and assertions (?)
 2. version 3: literate programming
-3. version 4: use the abstract calang.types and the built-in service loader to make calang.types and operators system modular
+3. version 4: use the abstract types and the built-in service loader to make types and operators system modular
 

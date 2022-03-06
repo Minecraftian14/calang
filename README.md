@@ -174,6 +174,82 @@ Program naming is done by checking files in the system, with extension `.calang`
 
 **Note**: File resolution strategy is still a working progress and this specification *will* change.
 
+# Tangling rules
+
+A Calang program is a `hcal` file written in HTML.
+That file will be processed to get a Calang code similar to the ones shown above.
+This Calang code eventually will be transpiled (or run).
+
+## Write as you want
+
+The very first tangling rule is to write as you prefer. Tangler program is non sensitive
+to sections, subsections, titles, styles, and so on. You can therefore organize your text as you want.
+
+## Specific markup sequences
+
+Some sequences of markup will be processed in a special way to output a Calang program.
+
+### Variable declarations
+
+Variable declaration are made inline, and always inline.
+
+The `<dfn><code>$SOME: FOO</code></dfn>` sequence will be processed
+to get `DECLARE $SOME FOO` declaration.
+If `class="input"` or `class="output"` is set on the `<dfn>` markup above,
+the declaration will be set as an input or an output, respectively.
+
+### Block code
+
+Blocks of code can be made of one or many instructions.
+The sequence `<pre><code>` always stands for a block of code.
+
+## Hyperlinking
+
+### Hyperlinking of paragraph
+
+Paragraphs are not associated to sections. In order to define a paragraph, you
+simply open a new `<a name="THE_PAR_NAME">` sequence around a text that you think suits
+best the introduction of your paragraph.
+
+Doing so, you can refer to your paragraph during `PERFORM` statements (in a block code)
+by re-opening a `<a href="#THE_PAR_NAME">` followed by a text that you think suits
+best the description of your paragraph in the current context.
+
+(The Calang editor will highlight in yellow the named text if you mouseover your paragraph, so
+that you can quicjly visualize where it refers to. Aside from that, you can also obviously
+follow the native web navigation.)
+
+### Hyperlink of programs
+
+Programs are referred to in a similar manner. You can use
+the sequence `<a href="/PROG_NAME">` (without `hcal` extension) on a `CALL` instruction
+(in a block code). The tangler will replace it with the correct reference.
+
+## More on paragraphs
+
+### Paragraph ordering
+
+You are not forced to organize your paragraph in a specific ordering.
+You can start with the main paragraph, or with any other paragraph you find more relevant.
+
+### Main paragraph
+
+The main paragraph need not come first anymore in a literate context.
+However, the universal property that it remains the unique paragraph no one links to, must
+still hold true; as otherwise we couldn't guess who is the main...
+
+From a pedagogical perspective, the main paragraph should still drive the global fow of the
+program. This suggests that either it comes first (top-down teaching: you first give the global
+picture, then you zoom on details), or last (bottom-up teaching: you first describe independent
+details, then you explain how their organize to achieve the goal). This is up to you! (Do it
+with love and care.)
+
+### Paragraph split
+
+Paragraphs may not be written in one block: you can decide to split your paragraphs in
+different blocks. The important part is that you do it in a sequentially coherent order:
+new paragraph starts when `<a name="...">` is detected.
+
 # Testing Calang
 
 Calang tests are, for now at least, quite constrained to development limitations.

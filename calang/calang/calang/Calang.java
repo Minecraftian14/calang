@@ -72,12 +72,6 @@ public class Calang {
 
     /******************************************************************** */
 
-    protected byte[] asCalangBytes(Object v) {
-        return new BytesValue(this).with(v).get();
-    }
-
-    /******************************************************************** */
-
     public interface PreInstruction {
         List<String> transpile(Scope scope);
     }

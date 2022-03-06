@@ -2,8 +2,8 @@ package calang;
 
 import java.util.*;
 import java.util.stream.*;
-import java.io.*;
-import java.nio.file.*;
+
+import static java.util.function.Predicate.not;
 
 public interface Tangle {
 
@@ -73,7 +73,9 @@ public interface Tangle {
                 }
             }
 
-            mainParagraph = paragraphs.keySet().stream().filter(p -> !references.contains(p)).findAny().orElseThrow(() -> new AssertionError("Unable to identify a main paragraph"));
+            mainParagraph = paragraphs.keySet().stream()
+                    .filter(not(references::contains))
+                    .findAny().orElseThrow(() -> new AssertionError("Unable to identify a main paragraph"));
         }
 
         var arr = new ArrayList<String>();

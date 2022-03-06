@@ -2,9 +2,6 @@ package calang.types;
 
 import calang.Calang;
 
-import java.util.Map;
-import java.util.function.Function;
-
 import static calang.rejections.Rejections.*;
 
 public abstract class TypedValue<S extends TypedValue<S, V> /* Fluent API: S is Self type */ , V /* Value type */> {
@@ -13,17 +10,9 @@ public abstract class TypedValue<S extends TypedValue<S, V> /* Fluent API: S is 
         return (S) this;
     }
 
-    @SuppressWarnings("unchecked")
-    Class<S> selfType() {
-        return (Class<S>) self().getClass();
-    }
-
-    private final Map<String, Operator<S>> operators;
     private V value;
-
     protected TypedValue(V value, Calang runtime) {
         this.value = value;
-        this.operators = runtime.getOperators(selfType());
     }
 
     public final V get() {
@@ -54,25 +43,13 @@ public abstract class TypedValue<S extends TypedValue<S, V> /* Fluent API: S is 
         throw UNSUPPORTED_FROM_OBJECT_CONVERSION.error(this, v);
     }
 
-    public Function<Object[], Object> sendBinding(String operatorName) {
-        if (operators.containsKey(operatorName)) {
-            var self = self();
-            var op = operators.get(operatorName);
-            return __ -> op.apply(self, __);
-        }
-        throw UNSUPPORTED_OPERATOR.error(operatorName, this);
-    }
-
     public final S with(Object v) {
         set(v);
         return self();
     }
 
+    @Override
     public String toString() {
-        return new String(bytesValue());
-    }
-
-    protected byte[] bytesValue() {
-        return this.get().toString().getBytes();
+        return this.get().toString();
     }
 }

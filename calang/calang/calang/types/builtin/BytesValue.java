@@ -15,8 +15,4 @@ public class BytesValue extends TypedValue<BytesValue, byte[]> {
     protected byte[] convertFromObject(Object v) {
         return v.toString().getBytes();
     }
-
-    protected byte[] bytesValue() {
-        return get();
-    }
 }

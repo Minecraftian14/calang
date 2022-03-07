@@ -42,7 +42,7 @@ public class Calang {
 			addOperator(BooleanValue.class, "NEGATE", (v, args) -> new BooleanValue(this).with(!v.get()));
 
             final Function<Object[], Boolean> xor = args -> Arrays.stream(args).map(arg -> new BooleanValue(Calang.this).with(arg).get()).reduce((a, b) -> a ^ b).orElseThrow();
-            addOperator(BooleanValue.class, "XOR", (v, args) -> new BooleanValue(this).with(v.get() ^ xor.apply(args));
+            addOperator(BooleanValue.class, "XOR", (v, args) -> new BooleanValue(this).with(v.get() ^ xor.apply(args)));
             final Function<Object[], Boolean> all = args -> Arrays.stream(args).map(arg -> new BooleanValue(Calang.this).with(arg).get()).reduce((a, b) -> a & b).orElseThrow();
             addOperator(BooleanValue.class, "AND", (v, args) -> new BooleanValue(this).with(v.get() && all.apply(args)));
             final Function<Object[], Boolean> any = args -> Arrays.stream(args).map(arg -> new BooleanValue(Calang.this).with(arg).get()).reduce((a, b) -> a | b).orElseThrow();

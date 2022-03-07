@@ -98,7 +98,7 @@ class BooleanValue extends TypedValue {
     "XOR": (v, args) => BooleanValue.of(v ^ args.map(BooleanValue.toBoolean).reduce((a,b) => a^b)),
     "AND": (v, args) => BooleanValue.of(v && args.map(BooleanValue.toBoolean).reduce((a,b) => a&&b)),
     "OR": (v, args) => BooleanValue.of(v || args.map(BooleanValue.toBoolean).reduce((a,b) => a||b)),
-    "XAND": (v, args) => BooleanValue.of(xandHelper(v, args.map(BooleanValue.toBoolean).reduce((a,b) => xandHelper(a,b)))),
+    "XAND": (v, args) => BooleanValue.of(BooleanValue.xandHelper(v, args.map(BooleanValue.toBoolean).reduce((a,b) => BooleanValue.xandHelper(a,b)))),
     "IMPLIES": (v, args) => BooleanValue.of(!v || args.map(BooleanValue.toBoolean).reduce((a,b) => !a||b))
   };
 

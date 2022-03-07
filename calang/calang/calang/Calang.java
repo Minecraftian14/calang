@@ -12,10 +12,11 @@ import java.util.function.*;
 import java.util.stream.*;
 
 import static calang.rejections.Rejections.*;
+import static java.util.function.Predicate.not;
 
 public class Calang {
-    private final Map<String, Function<Calang, TypedValue<?, ?>>> TOKENS;
-    private final Map<Class<? extends TypedValue<?, ?>>, Map<String, Operator<?>>> OPERATORS;
+    final Map<String, Function<Calang, TypedValue<?, ?>>> TOKENS;
+    final Map<Class<? extends TypedValue<?, ?>>, Map<String, Operator<?>>> OPERATORS;
 
     protected Calang() {
         TOKENS = new HashMap<>(Map.of(
@@ -62,12 +63,6 @@ public class Calang {
             OPERATORS.put(clz, new HashMap<>());
             addOperator(clz, operatorName, operator);
         }
-    }
-
-    @SuppressWarnings("unchecked")
-    public final <T extends TypedValue<T, ?>> Map<String, Operator<T>> getOperators(Class<T> clz) {
-        var operators = (Map<String, Operator<T>>) (Map<?,?>) OPERATORS.get(clz);
-        return operators == null ? Collections.emptyMap() : operators;
     }
 
     /******************************************************************** */
@@ -213,9 +208,10 @@ public class Calang {
         List<PreInstruction> instructions();
     }
 
-    /******************************************************************** */
-
     protected Program parse(List<String> lines) {
+        if (lines.stream().anyMatch(String::isBlank)) {
+            return parse(lines.stream().filter(not(String::isBlank)).toList());
+        }
         HashMap<String, TypedValue<?, ?>> variables;
         ArrayList<String> inputs;
         ArrayList<String> outputs;

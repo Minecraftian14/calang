@@ -8,6 +8,7 @@ import calang.types.builtin.*;
 
 import java.util.*;
 import java.util.stream.*;
+import java.util.function.Function;
 
 import static calang.rejections.Rejections.*;
 import static java.util.Collections.emptyList;
@@ -36,7 +37,16 @@ public class Calang {
             addOperator(BytesValue.class, "|.|", Operators.describes(BytesValue.class, IntegerValue.class, emptyList()));
         }
         {
+
             addOperator(BooleanValue.class, "NEGATE", Operators.describes(BooleanValue.class, BooleanValue.class, emptyList()));
+
+            // addOperator(BooleanValue.class, "NEGATE", (v, args) -> new BooleanValue(this).with(!v.get()));
+            // addOperator(BooleanValue.class, "XOR", (v, args) -> new BooleanValue(this).with(v.get() ^ new BooleanValue(Calang.this).with(args[0]).get()));
+
+            // final Function<Object[], Boolean> all = args -> Arrays.stream(args).map(arg -> new BooleanValue(Calang.this).with(arg)).dropWhile(TypedValue::get).findAny().isEmpty();
+            // addOperator(BooleanValue.class, "AND", (v, args) -> new BooleanValue(this).with(v.get() && all.apply(args)));
+            // final Function<Object[], Boolean> any = args -> Arrays.stream(args).map(arg -> new BooleanValue(Calang.this).with(arg)).anyMatch(TypedValue::get);
+            // addOperator(BooleanValue.class, "OR", (v, args) -> new BooleanValue(this).with(v.get() || any.apply(args)));
         }
     }
 

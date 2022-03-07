@@ -95,9 +95,10 @@ class BooleanValue extends TypedValue {
 
   static operatorTable = {
     "NEGATE": (v, args) => BooleanValue.of(!v),
-    "AND": (v, args) => BooleanValue.of(v && args.map(BooleanValue.toBoolean).reduce((a,b) => a^b)),
+    "XOR": (v, args) => BooleanValue.of(v ^ args.map(BooleanValue.toBoolean).reduce((a,b) => a^b)),
     "AND": (v, args) => BooleanValue.of(v && args.map(BooleanValue.toBoolean).reduce((a,b) => a&&b)),
-    "OR": (v, args) => BooleanValue.of(v || args.map(BooleanValue.toBoolean).reduce((a,b) => a||b))
+    "OR": (v, args) => BooleanValue.of(v || args.map(BooleanValue.toBoolean).reduce((a,b) => a||b)),
+    "LESS THAN": (v, args) => BooleanValue.of(v || args.map(BooleanValue.toBoolean).reduce((a,b) => a||b))
   };
 
   static toBoolean(any) {

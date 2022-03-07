@@ -3,7 +3,6 @@ package webengine;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
-import webengine.src.FileContent;
 import webengine.src.MyTranspiler;
 
 import java.io.*;
@@ -17,12 +16,6 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.stream.Collectors.joining;
 
 public class ServerProcess {
-
-    public interface SystemFileContent extends FileContent {
-        default String basePath() {
-            return Objects.requireNonNull(System.getenv("hcal-files"));
-        }
-    }
 
     public static class ServerTranspiler extends MyTranspiler implements SystemFileContent {}
 

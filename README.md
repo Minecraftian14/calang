@@ -269,6 +269,14 @@ localhost/prog
 There is currently no batch-build, but we have composed a transpiled version in the `project.out.js`.
 You can open the file `website/index.html` (out of local host: it is a detached file) to check the result.
 
+## Unit-testing Calang
+
+In order to unit test Calang, you will need to register JUnit dependency
+(and its dependency Hamcrest) by yourself. Checkout Maven Central repository
+to fetch JUnit version 13.2, together with Hamcrest version 1.3.
+
+This dependency should be a dependency of the sub-module `calang`.
+
 # Future of Calang
 
 It is likely that Calang will eventually disappear.

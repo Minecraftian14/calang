@@ -14,8 +14,8 @@ import java.util.stream.*;
 import static calang.rejections.Rejections.*;
 
 public class Calang {
-    private final Map<String, Function<Calang, TypedValue<?, ?>>> TOKENS;
-    private final Map<Class<? extends TypedValue<?, ?>>, Map<String, Operator<?>>> OPERATORS;
+    final Map<String, Function<Calang, TypedValue<?, ?>>> TOKENS;
+    final Map<Class<? extends TypedValue<?, ?>>, Map<String, Operator<?>>> OPERATORS;
 
     protected Calang() {
         TOKENS = new HashMap<>(Map.of(

@@ -259,7 +259,7 @@ Calang tests are, for now at least, quite constrained to development limitations
 Get the project and run the `ServerProcess#main` method from the tests folder. Make sure to declare
 an environment variable containing the absolute path to the `hcal-files` folder:
 ```
-hcal-files = /absolute/path/website/hcal-files
+hcal-files=/absolute/path/website/hcal-files
 ```
 It should open a web server. You should be able to browse the Calang files (hcal files)
 by visiting programs by their name without extension:

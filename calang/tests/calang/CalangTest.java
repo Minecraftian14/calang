@@ -11,6 +11,9 @@ import java.util.function.Predicate;
 
 import static org.junit.Assert.*;
 
+/**
+ * Parsing test is done in the CalangParseE2ETest file.
+ */
 public class CalangTest {
 
     @Test

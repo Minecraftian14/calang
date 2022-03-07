@@ -12,6 +12,7 @@ import java.util.function.*;
 import java.util.stream.*;
 
 import static calang.rejections.Rejections.*;
+import static java.util.function.Predicate.not;
 
 public class Calang {
     final Map<String, Function<Calang, TypedValue<?, ?>>> TOKENS;
@@ -207,9 +208,10 @@ public class Calang {
         List<PreInstruction> instructions();
     }
 
-    /******************************************************************** */
-
     protected Program parse(List<String> lines) {
+        if (lines.stream().anyMatch(String::isBlank)) {
+            return parse(lines.stream().filter(not(String::isBlank)).toList());
+        }
         HashMap<String, TypedValue<?, ?>> variables;
         ArrayList<String> inputs;
         ArrayList<String> outputs;

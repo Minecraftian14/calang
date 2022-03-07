@@ -64,12 +64,6 @@ public class Calang {
         }
     }
 
-    @SuppressWarnings("unchecked")
-    public final <T extends TypedValue<T, ?>> Map<String, Operator<T>> getOperators(Class<T> clz) {
-        var operators = (Map<String, Operator<T>>) (Map<?,?>) OPERATORS.get(clz);
-        return operators == null ? Collections.emptyMap() : operators;
-    }
-
     /******************************************************************** */
 
     public interface PreInstruction {

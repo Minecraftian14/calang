@@ -14,10 +14,10 @@ import java.util.Scanner;
 import java.util.stream.Stream;
 
 public interface FileContent {
-    String basePath();
+    Path basePath();
 
     default Stream<String> hcalFileList() throws IOException {
-        return Files.list(Paths.get(basePath()))
+        return Files.list(basePath())
                 .map(Path::getFileName)
                 .map(Path::toString)
                 .filter(f -> f.endsWith(".hcal"))
@@ -28,7 +28,7 @@ public interface FileContent {
         programName = programName + ".hcal";
         var arr = new ArrayList<String>(); {
             var base = basePath();
-            try(var bis = new BufferedInputStream(new FileInputStream(Paths.get(base, programName).toFile()))) {
+            try(var bis = new BufferedInputStream(new FileInputStream(base.resolve(programName).toFile()))) {
                 var sc = new Scanner(bis);
                 while(sc.hasNextLine())
                     arr.add(sc.nextLine());

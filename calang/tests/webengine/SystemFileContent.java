@@ -2,10 +2,13 @@ package webengine;
 
 import webengine.src.FileContent;
 
-import java.util.Objects;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+
+import static java.util.Objects.requireNonNull;
 
 public interface SystemFileContent extends FileContent {
-    default String basePath() {
-        return Objects.requireNonNull(System.getenv("hcal-files"));
+    default Path basePath() {
+        return Paths.get(requireNonNull(System.getenv("hcal-files")));
     }
 }

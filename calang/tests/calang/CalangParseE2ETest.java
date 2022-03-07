@@ -62,6 +62,27 @@ public class CalangParseE2ETest {
     }
 
     @Test
+    public void calangParser_shouldParseCorrect_performVariations() {
+        var program = program("""
+                DECLARE $F BOOLEAN
+                
+                START.
+                  PERFORM A IF $F
+                  PERFORM A IF NOT $F
+                  PERFORM A
+                  PERFORM A IF $F ELSE B
+                
+                A.
+                  PRINT dummy
+                
+                B.
+                  PRINT dummy
+                """);
+        var main = program.paragraph(program.headParagraphName());
+        assertEquals(4, main.instructions().size());
+    }
+
+    @Test
     public void calangParser_shouldParseCorrect_tower() {
         var program = program("""
                 DECLARE INPUT $HEIGHT INTEGER
@@ -91,12 +112,7 @@ public class CalangParseE2ETest {
         assertTrue(program.getDeclaredInputs().contains("$HEIGHT"));
         assertTrue(program.getDeclaredOutputs().isEmpty());
         assertEquals("MAIN", program.headParagraphName());
-
-        var scope = program.scope();
-        assertEquals(IntegerValue.class, scope.symbol("$HEIGHT").get().getClass());
-        assertEquals(IntegerValue.class, scope.symbol("$LOCAL_HEIGHT").get().getClass());
-        assertEquals(IntegerValue.class, scope.symbol("$CURSOR").get().getClass());
-        assertEquals(BooleanValue.class, scope.symbol("$FLAG").get().getClass());
+        assertTrue(List.of("MAIN", "PRINT_LINE", "PRINT_COLUMN").containsAll(program.paragraphNames()));
 
         var main = program.paragraph(program.headParagraphName());
         assertEquals(3, main.instructions().size());
@@ -106,6 +122,14 @@ public class CalangParseE2ETest {
 
         var printColumn = program.paragraph("PRINT_COLUMN");
         assertEquals(3, printColumn.instructions().size());
+
+        var scope = program.scope();
+        assertTrue(List.of("$HEIGHT", "$LOCAL_HEIGHT", "$CURSOR", "$FLAG").containsAll(scope.symbolList()));
+
+        assertEquals(IntegerValue.class, scope.symbol("$HEIGHT").get().getClass());
+        assertEquals(IntegerValue.class, scope.symbol("$LOCAL_HEIGHT").get().getClass());
+        assertEquals(IntegerValue.class, scope.symbol("$CURSOR").get().getClass());
+        assertEquals(BooleanValue.class, scope.symbol("$FLAG").get().getClass());
     }
 
     static List<String> toLines(String input) {

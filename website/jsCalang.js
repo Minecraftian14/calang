@@ -98,13 +98,18 @@ class BooleanValue extends TypedValue {
     "XOR": (v, args) => BooleanValue.of(v ^ args.map(BooleanValue.toBoolean).reduce((a,b) => a^b)),
     "AND": (v, args) => BooleanValue.of(v && args.map(BooleanValue.toBoolean).reduce((a,b) => a&&b)),
     "OR": (v, args) => BooleanValue.of(v || args.map(BooleanValue.toBoolean).reduce((a,b) => a||b)),
-    "LESS THAN": (v, args) => BooleanValue.of(v || args.map(BooleanValue.toBoolean).reduce((a,b) => a||b))
+    "XAND": (v, args) => BooleanValue.of(xandHelper(v, args.map(BooleanValue.toBoolean).reduce((a,b) => xandHelper(a,b)))),
+    "IMPLIES": (v, args) => BooleanValue.of(!v || args.map(BooleanValue.toBoolean).reduce((a,b) => !a||b))
   };
 
   static toBoolean(any) {
     var v = new BooleanValue();
     v.setValue(any);
     return v.getValue();
+  }
+
+  static xandHelper(a, b) {
+    return !((a || b) && (!(a && b)));
   }
 
   static newInstance() { return new BooleanValue(); }

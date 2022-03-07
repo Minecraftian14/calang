@@ -38,14 +38,23 @@ public class Calang {
         }
         {
             addOperator(BooleanValue.class, "NEGATE", Operators.describes(BooleanValue.class, BooleanValue.class, emptyList()));
+            /*
+			addOperator(BooleanValue.class, "NEGATE", (v, args) -> new BooleanValue(this).with(!v.get()));
 
-            // addOperator(BooleanValue.class, "NEGATE", (v, args) -> new BooleanValue(this).with(!v.get()));
-            // addOperator(BooleanValue.class, "XOR", (v, args) -> new BooleanValue(this).with(v.get() ^ new BooleanValue(Calang.this).with(args[0]).get()));
-
-            // final Function<Object[], Boolean> all = args -> Arrays.stream(args).map(arg -> new BooleanValue(Calang.this).with(arg)).dropWhile(TypedValue::get).findAny().isEmpty();
-            // addOperator(BooleanValue.class, "AND", (v, args) -> new BooleanValue(this).with(v.get() && all.apply(args)));
-            // final Function<Object[], Boolean> any = args -> Arrays.stream(args).map(arg -> new BooleanValue(Calang.this).with(arg)).anyMatch(TypedValue::get);
-            // addOperator(BooleanValue.class, "OR", (v, args) -> new BooleanValue(this).with(v.get() || any.apply(args)));
+            final Function<Object[], Boolean> xor = args -> Arrays.stream(args).map(arg -> new BooleanValue(Calang.this).with(arg).get()).reduce((a, b) -> a ^ b).orElseThrow();
+            addOperator(BooleanValue.class, "XOR", (v, args) -> new BooleanValue(this).with(v.get() ^ xor.apply(args));
+            final Function<Object[], Boolean> all = args -> Arrays.stream(args).map(arg -> new BooleanValue(Calang.this).with(arg).get()).reduce((a, b) -> a & b).orElseThrow();
+            addOperator(BooleanValue.class, "AND", (v, args) -> new BooleanValue(this).with(v.get() && all.apply(args)));
+            final Function<Object[], Boolean> any = args -> Arrays.stream(args).map(arg -> new BooleanValue(Calang.this).with(arg).get()).reduce((a, b) -> a | b).orElseThrow();
+            addOperator(BooleanValue.class, "OR", (v, args) -> new BooleanValue(this).with(v.get() || any.apply(args)));
+            final Function<Object[], Boolean> xand = args -> Arrays.stream(args).map(arg -> new BooleanValue(Calang.this).with(arg).get()).reduce((a, b) -> !((a || b) && (!(a && b)))).orElseThrow();
+            addOperator(BooleanValue.class, "XAND", (v, args) -> {
+                boolean a = v.get(), b = xand.apply(args);
+                return new BooleanValue(this).with(!((a || b) && (!(a && b))));
+            });
+            final Function<Object[], Boolean> implies = args -> Arrays.stream(args).map(arg -> new BooleanValue(Calang.this).with(arg).get()).reduce((a, b) -> !a || b).orElseThrow();
+            addOperator(BooleanValue.class, "IMPLIES", (v, args) -> new BooleanValue(this).with(!v.get() || implies.apply(args)));
+			*/
         }
     }
 

@@ -7,6 +7,7 @@ public enum Rejections {
     UNMAPPED_INPUT("Unable to run the program as not all inputs are given; missing at least %s"),
     UNKNOWN_VARIABLE("The requested scope does not contain any reference to %s symbol"),
     UNSUPPORTED_OPERATOR("Unsupported operator %s on %s"),
+    UNAPPLICABLE_OPERATOR("Operator %s on %s cannot be applied on types %s"),
     UNRECOGNIZED_INSTRUCTION_TOKEN("Unrecognized instruction token %s"),
     UNRECOGNIZED_PERFORM_DECORATOR("Unrecognized <PERFORM> instruction decorator %s"),
     MALFORMED_PERFORM_INSTRUCTION("Malformed expression PERFORM |%s|"),

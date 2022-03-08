@@ -24,7 +24,7 @@ public class Operators {
             Impl() { super(returnType); }
 
             @Override
-            public boolean doesAccept(List<Class<? extends TypedValue<?, ?>>> clz) {
+            public boolean doesAccept(List<? extends Class<? extends TypedValue<?, ?>>> clz) {
                 check: if(clz.size() == typeChecker.size()) {
                     for (int i = 0; i < clz.size(); i++)
                         if (clz.get(i) != typeChecker.get(i)) break check;
@@ -41,7 +41,7 @@ public class Operators {
             Impl() { super(returnType); }
 
             @Override
-            public boolean doesAccept(List<Class<? extends TypedValue<?, ?>>> clz) {
+            public boolean doesAccept(List<? extends Class<? extends TypedValue<?, ?>>> clz) {
                 for (Class<? extends TypedValue<?, ?>> aClass : clz)
                     if (aClass != typeChecker)
                         return false;

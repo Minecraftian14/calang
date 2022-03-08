@@ -90,7 +90,7 @@ public class TranspileJs extends Calang {
     }
 
     @Override
-    protected List<String> transpileComptInstruction(Scope scope, String baseSymbol, String operator, List<String> arguments, String targetSymbol) {
+    protected List<String> transpileComptInstruction(Scope scope, String targetSymbol, String baseSymbol, String operator, List<String> arguments) {
         var target = fVar(targetSymbol);
         var base = fVar(baseSymbol);
         var args = arguments.stream().map(TranspileJs::fVar).collect(Collectors.joining(", "));

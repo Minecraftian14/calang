@@ -8,7 +8,6 @@ import static java.util.function.Predicate.not;
 public interface Tangle {
 
     default List<String> tangle(List<String> content) {
-
         var declarations = new ArrayList<String[]>();
 
         for (var line : content) {
@@ -91,7 +90,6 @@ public interface Tangle {
             }
         }
         return arr;
-
     }
 
 }

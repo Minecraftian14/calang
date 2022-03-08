@@ -1,5 +1,6 @@
 package calang;
 
+import calang.instructions.*;
 import calang.types.Operator;
 import calang.types.TypedValue;
 import calang.types.builtin.BooleanValue;
@@ -75,118 +76,19 @@ public class Calang {
         if (line.startsWith("  ")) return getInstruction(line.substring(2));
         assert line.indexOf(" ") > 0 : "Malformed instruction line |%s|".formatted(line);
         var tokens = line.trim().split("\s+");
-        return switch (tokens[0]) {
-            case "PERFORM" -> prePerformInstruction(tokens);
-            case "PRINT" -> prePrintInstruction(tokens);
-            case "STORE" -> preStoreInstruction(tokens);
-            case "COMPT" -> preComputeInstruction(tokens);
-            case "CALL" -> preCallInstruction(tokens);
+        return (switch (tokens[0]) {
+            case "PERFORM" -> (PerformInstructionMk<PreInstruction>) (_1, _2, _3, _4, _5) -> __
+                    -> transpilePerformInstruction(__, _1, _2, _3, _4, _5);
+            case "PRINT" -> (PrintInstructionMk<PreInstruction>) _1 -> __
+                    -> transpilePrintInstruction(__, _1);
+            case "STORE" -> (StoreInstructionMk<PreInstruction>) (_1, _2) -> __
+                    -> transpileStoreInstruction(__, _1, _2);
+            case "COMPT" -> (ComptInstructionMk<PreInstruction>) (_1, _2, _3, _4) -> __
+                    -> transpileComptInstruction(__, _1, _2, _3, _4);
+            case "CALL" -> (CallInstructionMk<PreInstruction>) (_1, _2, _3) -> __
+                    -> transpileCallInstruction(__, _1, _2, _3);
             default -> throw UNRECOGNIZED_INSTRUCTION_TOKEN.error(tokens[0]);
-        };
-    }
-
-    private PreInstruction prePerformInstruction(String[] tokens) {
-        assert tokens[0].equals("PERFORM");
-        var paragraphName = tokens[1];
-        var altParagraphName = (String) null;
-        var booleanFlagSymbol = (String) null;
-        var isLoop = false;
-        var contraCondition = false;
-        if(tokens.length == 2); // PERFORM [parname], defaults are ok
-        else if(tokens.length == 4) { // PERFORM [parname] [WHILE/IF] [flag]
-            booleanFlagSymbol = tokens[3];
-            isLoop = switch (tokens[2]) {
-                case "IF" -> false;
-                case "WHILE" -> true;
-                default -> throw UNRECOGNIZED_PERFORM_DECORATOR.error(tokens[2]);
-            };
-        }
-        else if(tokens.length == 5) { // PERFORM [parname] IF NOT [flag]
-            if(! (tokens[2].equals("IF") && tokens[3].equals("NOT")))
-                throw MALFORMED_PERFORM_INSTRUCTION.error(Arrays.toString(tokens));
-            booleanFlagSymbol = tokens[4];
-            contraCondition = true;
-        }
-        else if(tokens.length == 6) { // PERFORM [parname] IF [flag] ELSE [altPar]
-            if(! (tokens[2].equals("IF") && tokens[4].equals("ELSE")))
-                throw MALFORMED_PERFORM_INSTRUCTION.error(Arrays.toString(tokens));
-            booleanFlagSymbol = tokens[3];
-            altParagraphName = tokens[5];
-        }
-        return prePerformInstruction(paragraphName, altParagraphName, booleanFlagSymbol, isLoop, contraCondition);
-    }
-
-    private PreInstruction prePerformInstruction(String paragraphName, String altParagraphName, String booleanValueSymbol, boolean isLoop, boolean contraCondition) {
-        return new PreInstruction() {
-            @Override
-            public List<String> transpile(Scope scope) {
-                return transpilePerformInstruction(scope, paragraphName, altParagraphName, booleanValueSymbol, isLoop, contraCondition);
-            }
-        };
-    }
-
-    private PreInstruction preStoreInstruction(String[] tokens) {
-        assert tokens[0].equals("STORE");
-        assert tokens[1].equals("IN");
-        return preStoreInstruction(tokens[2], Arrays.stream(tokens).skip(3).collect(Collectors.joining(" ")));
-    }
-
-    private PreInstruction preStoreInstruction(String targetSymbol, String sourceSymbol) {
-        return new PreInstruction() {
-            @Override
-            public List<String> transpile(Scope scope) {
-                return transpileStoreInstruction(scope, sourceSymbol, targetSymbol);
-            }
-        };
-    }
-
-    private PreInstruction prePrintInstruction(String[] tokens) {
-        assert tokens[0].equals("PRINT");
-        assert tokens.length > 1;
-        return prePrintInstruction(Arrays.stream(tokens).skip(1).toList());
-    }
-
-    private PreInstruction prePrintInstruction(List<String> message) {
-        return new PreInstruction() {
-            @Override
-            public List<String> transpile(Scope scope) {
-                return transpilePrintInstruction(scope, message);
-            }
-        };
-    }
-
-    private PreInstruction preComputeInstruction(String[] tokens) {
-        assert tokens[0].equals("COMPT");
-        assert tokens[1].equals("IN");
-        var target = tokens[2];
-        var base = tokens[3];
-        var operator = tokens[4];
-        var parameters = Arrays.stream(tokens).skip(5).toList();
-        return preComptInstruction(target, base, operator, parameters);
-    }
-
-    private PreInstruction preComptInstruction(String targetSymbol, String baseSymbol, String operator, List<String> parameterSymbols) {
-        return new PreInstruction() {
-            @Override
-            public List<String> transpile(Scope scope) {
-                return transpileComptInstruction(scope, baseSymbol, operator, parameterSymbols, targetSymbol);
-            }
-        };
-    }
-
-    private PreInstruction preCallInstruction(String[] tokens) {
-        assert tokens[0].equals("CALL");
-        Function<String, List<VariableBinding>> f = t -> IntStream.range(0, (tokens.length - 2) / 3).mapToObj(i -> IntStream.range(0, 3).map(j -> j + 2 + (i * 3)).mapToObj(j -> tokens[j]).toArray(String[]::new)).filter(arr -> t.equals(arr[1])).map(arr -> new VariableBinding(arr[0], arr[2])).toList();
-        return preCallInstruction(tokens[1], f.apply(">>"), f.apply("<<"));
-    }
-
-    private PreInstruction preCallInstruction(String childProgramName, List<VariableBinding> in, List<VariableBinding> out) {
-        return new PreInstruction() {
-            @Override
-            public List<String> transpile(Scope scope) {
-                return transpileCallInstruction(scope, childProgramName, in, out);
-            }
-        };
+        }).makeInstruction(tokens);
     }
 
     public interface Program {
@@ -314,7 +216,7 @@ public class Calang {
         throw NON_TRANSPILED_INSTRUCTION.error("STORE");
     }
 
-    protected List<String> transpileComptInstruction(Scope scope, String baseSymbol, String operator, List<String> arguments, String targetSymbol) {
+    protected List<String> transpileComptInstruction(Scope scope, String targetSymbol, String baseSymbol, String operator, List<String> arguments) {
         throw NON_TRANSPILED_INSTRUCTION.error("COMPT");
     }
 

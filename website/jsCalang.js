@@ -99,12 +99,12 @@ class BooleanValue extends TypedValue {
   }
 
   static operatorTable = {
-    "NEGATE": (v, args) =>  BooleanValue.of(!v),
+    "NEGATE": (v, args) =>  BooleanValue.of(!v.getValue()),
     "XOR": (v, args) =>     BooleanValue.of(TypedValue.reduceArgs(v, args, (a, b) => a ^  b)),
     "AND": (v, args) =>     BooleanValue.of(TypedValue.reduceArgs(v, args, (a, b) => a && b)),
     "OR": (v, args) =>      BooleanValue.of(TypedValue.reduceArgs(v, args, (a, b) => a || b)),
     "XAND": (v, args) =>    BooleanValue.of(TypedValue.reduceArgs(v, args, (a, b) => !((a || b) && (!(a && b))))),
-    "IMPLIES": (v, args) => BooleanValue.of(!v.getValue() || args[0].getValue)
+    "IMPLIES": (v, args) => BooleanValue.of(!v.getValue() || args[0].getValue())
   };
 
   static newInstance() { return new BooleanValue(); }

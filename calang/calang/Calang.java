@@ -37,24 +37,11 @@ public class Calang {
             addOperator(BytesValue.class, "|.|", Operators.describes(BytesValue.class, IntegerValue.class, emptyList()));
         }
         {
-            addOperator(BooleanValue.class, "NEGATE", Operators.describes(BooleanValue.class, BooleanValue.class, emptyList()));
-            /*
-			addOperator(BooleanValue.class, "NEGATE", (v, args) -> new BooleanValue(this).with(!v.get()));
-
-            final Function<Object[], Boolean> xor = args -> Arrays.stream(args).map(arg -> new BooleanValue(Calang.this).with(arg).get()).reduce((a, b) -> a ^ b).orElseThrow();
-            addOperator(BooleanValue.class, "XOR", (v, args) -> new BooleanValue(this).with(v.get() ^ xor.apply(args)));
-            final Function<Object[], Boolean> all = args -> Arrays.stream(args).map(arg -> new BooleanValue(Calang.this).with(arg).get()).reduce((a, b) -> a & b).orElseThrow();
-            addOperator(BooleanValue.class, "AND", (v, args) -> new BooleanValue(this).with(v.get() && all.apply(args)));
-            final Function<Object[], Boolean> any = args -> Arrays.stream(args).map(arg -> new BooleanValue(Calang.this).with(arg).get()).reduce((a, b) -> a | b).orElseThrow();
-            addOperator(BooleanValue.class, "OR", (v, args) -> new BooleanValue(this).with(v.get() || any.apply(args)));
-            final Function<Object[], Boolean> xand = args -> Arrays.stream(args).map(arg -> new BooleanValue(Calang.this).with(arg).get()).reduce((a, b) -> !((a || b) && (!(a && b)))).orElseThrow();
-            addOperator(BooleanValue.class, "XAND", (v, args) -> {
-                boolean a = v.get(), b = xand.apply(args);
-                return new BooleanValue(this).with(!((a || b) && (!(a && b))));
-            });
-            final Function<Object[], Boolean> implies = args -> Arrays.stream(args).map(arg -> new BooleanValue(Calang.this).with(arg).get()).reduce((a, b) -> !a || b).orElseThrow();
-            addOperator(BooleanValue.class, "IMPLIES", (v, args) -> new BooleanValue(this).with(!v.get() || implies.apply(args)));
-			*/
+            addOperator(BooleanValue.class, "NEGATE",  Operators.describes(BooleanValue.class, BooleanValue.class, emptyList()));
+            addOperator(BooleanValue.class, "AND",     Operators.describes(BooleanValue.class, BooleanValue.class, BooleanValue.class));
+            addOperator(BooleanValue.class, "OR",      Operators.describes(BooleanValue.class, BooleanValue.class, BooleanValue.class));
+            addOperator(BooleanValue.class, "XAND",    Operators.describes(BooleanValue.class, BooleanValue.class, BooleanValue.class));
+            addOperator(BooleanValue.class, "IMPLIES", Operators.describes(BooleanValue.class, BooleanValue.class, singletonList(IntegerValue.class)));
         }
     }
 

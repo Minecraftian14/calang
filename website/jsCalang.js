@@ -26,6 +26,11 @@ class Print {
 }
 
 class TypedValue {
+  static reduceArgs(base, args, reducer) {
+    args.splice(0, 0, base)
+    return args.map(value => value.getValue()).reduce(reducer);
+  }
+
   constructor(value, operatorTable) {
     this.value = value;
     this.operatorTable = operatorTable;
@@ -41,7 +46,7 @@ class TypedValue {
     throw `Unsupported convert {v} from object in {this}`;
   }
 
-  sendMessage(operatorName, args) { return this.operatorTable[operatorName](this.getValue(), args); }
+  sendMessage(operatorName, args) { return this.operatorTable[operatorName](this, args); }
 
   toString() { return new String(this.getValue()); }
 
@@ -66,10 +71,10 @@ class IntegerValue extends TypedValue {
   }
 
   static operatorTable = {
-      "+": (v, args) => IntegerValue.of(v + args.map(IntegerValue.toInt).reduce((a,b) => a+b)),
-      "-": (v, args) => IntegerValue.of(v - args.map(IntegerValue.toInt).reduce((a,b) => a+b)),
-      "succ": (v, args) => IntegerValue.of(IntegerValue.toInt(v) + 1),
-      "prec": (v, args) => IntegerValue.of(IntegerValue.toInt(v) - 1),
+      "+": (v, args) => IntegerValue.of(TypedValue.reduceArgs(v, args, (a, b) => a+b)),
+      "-": (v, args) => IntegerValue.of(TypedValue.reduceArgs(v, args, (a, b) => a-b)),
+      "succ": (v, args) => IntegerValue.of(IntegerValue.toInt(v.getValue()) + 1),
+      "prec": (v, args) => IntegerValue.of(IntegerValue.toInt(v.getValue()) - 1),
     };
 
   static toInt(any) {
@@ -94,23 +99,13 @@ class BooleanValue extends TypedValue {
   }
 
   static operatorTable = {
-    "NEGATE": (v, args) => BooleanValue.of(!v),
-    "XOR": (v, args) => BooleanValue.of(v ^ args.map(BooleanValue.toBoolean).reduce((a,b) => a^b)),
-    "AND": (v, args) => BooleanValue.of(v && args.map(BooleanValue.toBoolean).reduce((a,b) => a&&b)),
-    "OR": (v, args) => BooleanValue.of(v || args.map(BooleanValue.toBoolean).reduce((a,b) => a||b)),
-    "XAND": (v, args) => BooleanValue.of(BooleanValue.xandHelper(v, args.map(BooleanValue.toBoolean).reduce((a,b) => BooleanValue.xandHelper(a,b)))),
-    "IMPLIES": (v, args) => BooleanValue.of(!v || args.map(BooleanValue.toBoolean).reduce((a,b) => !a||b))
+    "NEGATE": (v, args) =>  BooleanValue.of(!v),
+    "XOR": (v, args) =>     BooleanValue.of(TypedValue.reduceArgs(v, args, (a, b) => a ^  b)),
+    "AND": (v, args) =>     BooleanValue.of(TypedValue.reduceArgs(v, args, (a, b) => a && b)),
+    "OR": (v, args) =>      BooleanValue.of(TypedValue.reduceArgs(v, args, (a, b) => a || b)),
+    "XAND": (v, args) =>    BooleanValue.of(TypedValue.reduceArgs(v, args, (a, b) => !((a || b) && (!(a && b))))),
+    "IMPLIES": (v, args) => BooleanValue.of(!v.getValue() || args[0].getValue)
   };
-
-  static toBoolean(any) {
-    var v = new BooleanValue();
-    v.setValue(any);
-    return v.getValue();
-  }
-
-  static xandHelper(a, b) {
-    return !((a || b) && (!(a && b)));
-  }
 
   static newInstance() { return new BooleanValue(); }
   static of(boolean) {
@@ -137,7 +132,7 @@ class BytesValue extends TypedValue {
   }
 
   static operatorTable = {
-    "|.|": (v, args) => IntegerValue.of(v.length)
+    "|.|": (v, args) => IntegerValue.of(v.getValue().length)
   };
 
   static newInstance() { return new BytesValue(); }

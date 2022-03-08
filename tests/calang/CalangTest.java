@@ -52,14 +52,12 @@ public class CalangTest {
 
         assertFalse(calang.TOKENS.containsKey(magnet));
 
-        class MyType extends TypedValue<MyType, Object> {
-            MyType(Calang calang) { super(new Object(), calang); }
-        }
+        class MyType implements TypedValue<MyType, Object> {}
 
-        calang.addType(magnet, MyType::new);
+        calang.addType(magnet, MyType.class);
 
         assertTrue(calang.TOKENS.containsKey(magnet));
-        assertTrue(calang.TOKENS.get(magnet).apply(calang) instanceof MyType); // null yields false
+        assertSame(calang.TOKENS.get(magnet), MyType.class); // null yields false
     }
 
     @Test

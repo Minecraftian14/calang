@@ -9,8 +9,8 @@ import static java.util.function.Predicate.not;
 
 public class TranspileJs extends Calang {
 
-    protected String transpileType(TypedValue<?, ?> value) {
-        return "Calang['%s']".formatted(value.getClass().getSimpleName());
+    protected String transpileType(Class<? extends TypedValue<?, ?>> value) {
+        return "Calang['%s']".formatted(value.getSimpleName());
     }
 
     private static String fPar(String paragraphName) {
@@ -78,7 +78,7 @@ public class TranspileJs extends Calang {
     }
 
     @Override
-    protected List<String> transpileStoreInstruction(Scope scope, String sourceSymbol, String targetSymbol) {
+    protected List<String> transpileStoreInstruction(Scope scope, String targetSymbol, String sourceSymbol) {
         var target = fVar(targetSymbol);
         String value;
         {

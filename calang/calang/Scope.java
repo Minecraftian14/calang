@@ -8,11 +8,11 @@ import java.util.Optional;
 import static calang.rejections.Rejections.UNKNOWN_VARIABLE;
 
 public interface Scope {
-    Optional<TypedValue<?, ?>> symbol(String token);
+    Optional<Class<? extends TypedValue<?, ?>>> symbol(String token);
 
     List<String> symbolList();
 
-    default TypedValue<?, ?> getOrDie(String token) {
+    default Class<? extends TypedValue<?, ?>> getOrDie(String token) {
         return symbol(token).orElseThrow(() -> UNKNOWN_VARIABLE.error(token));
     }
 }

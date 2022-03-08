@@ -2,11 +2,11 @@ package calang;
 
 import calang.instructions.*;
 import calang.types.Operator;
+import calang.types.Operators;
 import calang.types.TypedValue;
 import calang.types.builtin.*;
 
 import java.util.*;
-import java.util.function.*;
 import java.util.stream.*;
 
 import static calang.rejections.Rejections.*;
@@ -15,15 +15,15 @@ import static java.util.Collections.singletonList;
 import static java.util.function.Predicate.not;
 
 public class Calang {
-    final Map<String, Function<Calang, TypedValue<?, ?>>> TOKENS;
+    final Map<String, Class<? extends TypedValue<?, ?>>> TOKENS;
     final Map<Class<? extends TypedValue<?, ?>>, Map<String, Operator<?>>> OPERATORS;
 
     protected Calang() {
         TOKENS = new HashMap<>(Map.of(
-                "INTEGER", IntegerValue::new,
-                "BYTES", BytesValue::new,
-                "BOOLEAN", BooleanValue::new,
-                "PROGRAM", ProgramValue::new
+                "INTEGER", IntegerValue.class,
+                "BYTES", BytesValue.class,
+                "BOOLEAN", BooleanValue.class,
+                "PROGRAM", ProgramValue.class
         ));
         OPERATORS = new HashMap<>();
         {
@@ -40,7 +40,7 @@ public class Calang {
         }
     }
 
-    public final void addType(String typeIdentifier, Function<Calang, TypedValue<?, ?>> typeFactory) {
+    public final void addType(String typeIdentifier, Class<? extends TypedValue<?, ?>> typeFactory) {
         TOKENS.put(typeIdentifier, typeFactory);
     }
 
@@ -104,7 +104,7 @@ public class Calang {
         if (lines.stream().anyMatch(String::isBlank)) {
             return parse(lines.stream().filter(not(String::isBlank)).toList());
         }
-        HashMap<String, TypedValue<?, ?>> variables;
+        HashMap<String, Class<? extends TypedValue<?, ?>>> variables;
         ArrayList<String> inputs;
         ArrayList<String> outputs;
         {
@@ -116,7 +116,7 @@ public class Calang {
                 assert tokens[0].equals("DECLARE");
                 var varName = tokens[tokens.length - 2];
                 var varType = tokens[tokens.length - 1];
-                var variable = Objects.requireNonNull(TOKENS.get(varType), "Unable to resolve type %s".formatted(varType)).apply(this);
+                var variable = Objects.requireNonNull(TOKENS.get(varType), "Unable to resolve type %s".formatted(varType));
                 variables.put(varName, variable);
                 if (tokens.length == 4) {
                     if ("INPUT".equals(tokens[1])) inputs.add(varName);
@@ -126,7 +126,7 @@ public class Calang {
         }
         Scope scope = new Scope() {
             @Override
-            public Optional<TypedValue<?, ?>> symbol(String symbName) {
+            public Optional<Class<? extends TypedValue<?, ?>>> symbol(String symbName) {
                 return Optional.ofNullable(variables.get(symbName));
             }
 

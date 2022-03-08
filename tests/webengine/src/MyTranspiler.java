@@ -1,11 +1,10 @@
 package webengine.src;
 
-import calang.Calang;
 import calang.Tangle;
 import calang.TranspileJs;
 import calang.types.TypedValue;
 import calang.types.builtin.BytesValue;
-import calang.types.builtin.Operators;
+import calang.types.Operators;
 import calang.types.builtin.ProgramValue;
 
 import java.util.List;
@@ -15,12 +14,10 @@ import static java.util.Collections.emptyList;
 public abstract class MyTranspiler extends TranspileJs implements Tangle, FileContent
 {
 
-    public static class ModalElementValue extends TypedValue<ModalElementValue, Object> {
-        public ModalElementValue(Calang runtime) { super(new Object(), runtime); }
-    }
+    public static class ModalElementValue implements TypedValue<ModalElementValue, Object> {}
 
     {
-        addType("MODAL_ELEMENT", ModalElementValue::new);
+        addType("MODAL_ELEMENT", ModalElementValue.class);
 
         addOperator(ModalElementValue.class, "...", Operators.describes(ModalElementValue.class, ModalElementValue.class, ProgramValue.class));
         addOperator(ModalElementValue.class, "display!", Operators.describes(ModalElementValue.class, ModalElementValue.class, emptyList()));

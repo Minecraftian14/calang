@@ -32,8 +32,8 @@ public class CalangParseE2ETest {
         assertEquals("BEGIN", program.headParagraphName());
 
         var scope = program.scope();
-        assertEquals(BytesValue.class, scope.symbol("$MESSAGE").get().getClass());
-        assertEquals(IntegerValue.class, scope.symbol("$LENGTH").get().getClass());
+        assertSame(BytesValue.class, scope.symbol("$MESSAGE").orElseThrow(AssertionError::new));
+        assertSame(IntegerValue.class, scope.symbol("$LENGTH").orElseThrow(AssertionError::new));
 
         var main = program.paragraph(program.headParagraphName());
         assertEquals(3, main.instructions().size());
@@ -54,8 +54,8 @@ public class CalangParseE2ETest {
         assertEquals("START", program.headParagraphName());
 
         var scope = program.scope();
-        assertEquals(BytesValue.class, scope.symbol("$CHUNK").get().getClass());
-        assertEquals(IntegerValue.class, scope.symbol("$LENGTH").get().getClass());
+        assertSame(BytesValue.class, scope.symbol("$CHUNK").orElseThrow(AssertionError::new));
+        assertSame(IntegerValue.class, scope.symbol("$LENGTH").orElseThrow(AssertionError::new));
 
         var main = program.paragraph(program.headParagraphName());
         assertEquals(1, main.instructions().size());
@@ -126,10 +126,10 @@ public class CalangParseE2ETest {
         var scope = program.scope();
         assertTrue(List.of("$HEIGHT", "$LOCAL_HEIGHT", "$CURSOR", "$FLAG").containsAll(scope.symbolList()));
 
-        assertEquals(IntegerValue.class, scope.symbol("$HEIGHT").get().getClass());
-        assertEquals(IntegerValue.class, scope.symbol("$LOCAL_HEIGHT").get().getClass());
-        assertEquals(IntegerValue.class, scope.symbol("$CURSOR").get().getClass());
-        assertEquals(BooleanValue.class, scope.symbol("$FLAG").get().getClass());
+        assertSame(IntegerValue.class, scope.symbol("$HEIGHT").orElseThrow(AssertionError::new));
+        assertSame(IntegerValue.class, scope.symbol("$LOCAL_HEIGHT").orElseThrow(AssertionError::new));
+        assertSame(IntegerValue.class, scope.symbol("$CURSOR").orElseThrow(AssertionError::new));
+        assertSame(BooleanValue.class, scope.symbol("$FLAG").orElseThrow(AssertionError::new));
     }
 
     static List<String> toLines(String input) {

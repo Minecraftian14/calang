@@ -4,9 +4,13 @@ import calang.Calang;
 import calang.Tangle;
 import calang.TranspileJs;
 import calang.types.TypedValue;
+import calang.types.builtin.BytesValue;
+import calang.types.builtin.Operators;
 import calang.types.builtin.ProgramValue;
 
 import java.util.List;
+
+import static java.util.Collections.emptyList;
 
 public abstract class MyTranspiler extends TranspileJs implements Tangle, FileContent
 {
@@ -18,10 +22,10 @@ public abstract class MyTranspiler extends TranspileJs implements Tangle, FileCo
     {
         addType("MODAL_ELEMENT", ModalElementValue::new);
 
-        addOperator(ModalElementValue.class, "...", (v, args) -> new ProgramValue(this));
-        addOperator(ModalElementValue.class, "display!", (v, args) -> v);
-        addOperator(ModalElementValue.class, "close!", (v, args) -> v);
-        addOperator(ModalElementValue.class, "?", (v, args) -> "Some text");
+        addOperator(ModalElementValue.class, "...", Operators.describes(ModalElementValue.class, ModalElementValue.class, ProgramValue.class));
+        addOperator(ModalElementValue.class, "display!", Operators.describes(ModalElementValue.class, ModalElementValue.class, emptyList()));
+        addOperator(ModalElementValue.class, "close!", Operators.describes(ModalElementValue.class, ModalElementValue.class, emptyList()));
+        addOperator(ModalElementValue.class, "?", Operators.describes(ModalElementValue.class, BytesValue.class, emptyList()));
     }
 
     public List<String> transpile(String programName) {

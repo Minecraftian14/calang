@@ -1,6 +1,5 @@
 package calang;
 
-import calang.types.Operator;
 import calang.types.TypedValue;
 import calang.types.builtin.BooleanValue;
 import calang.types.builtin.BytesValue;
@@ -67,14 +66,7 @@ public class CalangTest {
     public void basicCalang_shouldSupport_addOperator() {
         var calang = new Calang();
 
-        var newIntOperator = new Operator<IntegerValue>() {
-            @Override
-            public Object apply(IntegerValue v, Object... args) {
-                throw new AssertionError("This doesn't matter");
-            }
-        };
-
-        calang.addOperator(IntegerValue.class, "|.|", newIntOperator);
+        calang.addOperator(IntegerValue.class, "|.|", null);
 
         assertTrue(calang.OPERATORS.get(IntegerValue.class).containsKey("|.|"));
     }

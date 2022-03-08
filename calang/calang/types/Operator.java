@@ -1,6 +1,10 @@
 package calang.types;
+import java.util.List;
 
-@FunctionalInterface
 public interface Operator<T extends TypedValue<T, ?>> {
-    Object apply(T v, Object... args);
+
+    boolean doesAccept(List<Class<? extends TypedValue<?, ?>>> clz);
+
+    boolean canBeStoredIn(Class<? extends TypedValue<?, ?>> store);
+
 }

@@ -3,16 +3,15 @@ package calang;
 import calang.instructions.*;
 import calang.types.Operator;
 import calang.types.TypedValue;
-import calang.types.builtin.BooleanValue;
-import calang.types.builtin.BytesValue;
-import calang.types.builtin.IntegerValue;
-import calang.types.builtin.ProgramValue;
+import calang.types.builtin.*;
 
 import java.util.*;
 import java.util.function.*;
 import java.util.stream.*;
 
 import static calang.rejections.Rejections.*;
+import static java.util.Collections.emptyList;
+import static java.util.Collections.singletonList;
 import static java.util.function.Predicate.not;
 
 public class Calang {
@@ -28,25 +27,16 @@ public class Calang {
         ));
         OPERATORS = new HashMap<>();
         {
-            class Accessor {
-                Stream<Integer> get(Object[] args) {
-                    return Arrays.stream(args).map(i -> new IntegerValue(i, Calang.this)).map(IntegerValue::get);
-                }
-
-                int sum(Object[] args) {
-                    return get(args).mapToInt(Integer::intValue).sum();
-                }
-            }
-            addOperator(IntegerValue.class, "-", (v, args) -> new IntegerValue(v.get() - new Accessor().sum(args), Calang.this));
-            addOperator(IntegerValue.class, "+", (v, args) -> new IntegerValue(v.get() + new Accessor().sum(args), Calang.this));
-            addOperator(IntegerValue.class, "prec", (v, args) -> new IntegerValue(v.get() - 1, Calang.this));
-            addOperator(IntegerValue.class, "succ", (v, args) -> new IntegerValue(v.get() + 1, Calang.this));
+            addOperator(IntegerValue.class, "-", Operators.describes(IntegerValue.class, IntegerValue.class, IntegerValue.class));
+            addOperator(IntegerValue.class, "+", Operators.describes(IntegerValue.class, IntegerValue.class, IntegerValue.class));
+            addOperator(IntegerValue.class, "prec", Operators.describes(IntegerValue.class, IntegerValue.class, singletonList(IntegerValue.class)));
+            addOperator(IntegerValue.class, "succ", Operators.describes(IntegerValue.class, IntegerValue.class, singletonList(IntegerValue.class)));
         }
         {
-            addOperator(BytesValue.class, "|.|", (v, args) -> new IntegerValue(v.get().length, this));
+            addOperator(BytesValue.class, "|.|", Operators.describes(BytesValue.class, IntegerValue.class, emptyList()));
         }
         {
-            addOperator(BooleanValue.class, "NEGATE", (v, args) -> new BooleanValue(this).with(!v.get()));
+            addOperator(BooleanValue.class, "NEGATE", Operators.describes(BooleanValue.class, BooleanValue.class, emptyList()));
         }
     }
 

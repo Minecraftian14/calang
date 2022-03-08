@@ -26,6 +26,12 @@ class Print {
 }
 
 class TypedValue {
+  static reduceArgs(base, args, reducer) {
+    args = args.map(value => value.getValue());
+    args.splice(0, 0, base)
+    return args.reduce(reducer);
+  }
+
   constructor(value, operatorTable) {
     this.value = value;
     this.operatorTable = operatorTable;
@@ -94,7 +100,12 @@ class BooleanValue extends TypedValue {
   }
 
   static operatorTable = {
-    "NEGATE": (v, args) => BooleanValue.of(!v)
+    "NEGATE": (v, args) =>  BooleanValue.of(!v),
+    "XOR": (v, args) =>     BooleanValue.of(TypedValue.reduceArgs(v, args, (a, b) => a ^  b)),
+    "AND": (v, args) =>     BooleanValue.of(TypedValue.reduceArgs(v, args, (a, b) => a && b)),
+    "OR": (v, args) =>      BooleanValue.of(TypedValue.reduceArgs(v, args, (a, b) => a || b)),
+    "XAND": (v, args) =>    BooleanValue.of(TypedValue.reduceArgs(v, args, (a, b) => !((a || b) && (!(a && b))))),
+    "IMPLIES": (v, args) => BooleanValue.of(!v || args[0].getValue())
   };
 
   static newInstance() { return new BooleanValue(); }

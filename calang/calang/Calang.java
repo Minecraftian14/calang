@@ -11,7 +11,6 @@ import java.util.stream.*;
 
 import static calang.rejections.Rejections.*;
 import static java.util.Collections.emptyList;
-import static java.util.Collections.singletonList;
 import static java.util.function.Predicate.not;
 
 public class Calang {
@@ -29,8 +28,8 @@ public class Calang {
         {
             addOperator(IntegerValue.class, "-", Operators.describes(IntegerValue.class, IntegerValue.class, IntegerValue.class));
             addOperator(IntegerValue.class, "+", Operators.describes(IntegerValue.class, IntegerValue.class, IntegerValue.class));
-            addOperator(IntegerValue.class, "prec", Operators.describes(IntegerValue.class, IntegerValue.class, singletonList(IntegerValue.class)));
-            addOperator(IntegerValue.class, "succ", Operators.describes(IntegerValue.class, IntegerValue.class, singletonList(IntegerValue.class)));
+            addOperator(IntegerValue.class, "prec", Operators.describes(IntegerValue.class, IntegerValue.class, emptyList()));
+            addOperator(IntegerValue.class, "succ", Operators.describes(IntegerValue.class, IntegerValue.class, emptyList()));
         }
         {
             addOperator(BytesValue.class, "|.|", Operators.describes(BytesValue.class, IntegerValue.class, emptyList()));
@@ -60,25 +59,6 @@ public class Calang {
 
     public interface PreInstruction {
         List<String> transpile(Scope scope);
-    }
-
-    private PreInstruction getInstruction(String line) {
-        if (line.startsWith("  ")) return getInstruction(line.substring(2));
-        assert line.indexOf(" ") > 0 : "Malformed instruction line |%s|".formatted(line);
-        var tokens = line.trim().split("\s+");
-        return (switch (tokens[0]) {
-            case "PERFORM" -> (PerformInstructionMk<PreInstruction>) (_1, _2, _3, _4, _5) -> __
-                    -> transpilePerformInstruction(__, _1, _2, _3, _4, _5);
-            case "PRINT" -> (PrintInstructionMk<PreInstruction>) _1 -> __
-                    -> transpilePrintInstruction(__, _1);
-            case "STORE" -> (StoreInstructionMk<PreInstruction>) (_1, _2) -> __
-                    -> transpileStoreInstruction(__, _1, _2);
-            case "COMPT" -> (ComptInstructionMk<PreInstruction>) (_1, _2, _3, _4) -> __
-                    -> transpileComptInstruction(__, _1, _2, _3, _4);
-            case "CALL" -> (CallInstructionMk<PreInstruction>) (_1, _2, _3) -> __
-                    -> transpileCallInstruction(__, _1, _2, _3);
-            default -> throw UNRECOGNIZED_INSTRUCTION_TOKEN.error(tokens[0]);
-        }).makeInstruction(tokens);
     }
 
     public interface Program {
@@ -142,11 +122,40 @@ public class Calang {
         Par headParagraph;
         {
             class InstructionChecker {
-                PreInstruction checkedPreInstruction(String line) {
-                    return getInstruction(line);
+                InstructionMk<PreInstruction> uncheckedPreInstruction(String[] tokens) {
+                    return switch (tokens[0]) {
+                        case "PERFORM" -> (PerformInstructionMk<PreInstruction>) (_1, _2, _3, _4, _5) -> __ -> transpilePerformInstruction(__, _1, _2, _3, _4, _5);
+                        case "PRINT" -> (PrintInstructionMk<PreInstruction>) _1 -> __ -> transpilePrintInstruction(__, _1);
+                        case "STORE" -> (StoreInstructionMk<PreInstruction>) (_1, _2) -> __ -> transpileStoreInstruction(__, _1, _2);
+                        case "COMPT" -> (ComptInstructionMk<PreInstruction>) (_1, _2, _3, _4) -> __ -> transpileComptInstruction(__, _1, _2, _3, _4);
+                        case "CALL" -> (CallInstructionMk<PreInstruction>) (_1, _2, _3) -> __ -> transpileCallInstruction(__, _1, _2, _3);
+                        default -> throw UNRECOGNIZED_INSTRUCTION_TOKEN.error(tokens[0]);
+                    };
                 }
-            }
-            var checker = new InstructionChecker();
+                PreInstruction checkedPreInstruction(String line) {
+                    if (line.startsWith("  ")) return checkedPreInstruction(line.substring(2));
+                    assert line.indexOf(" ") > 0 : "Malformed instruction line |%s|".formatted(line);
+                    var tokens = line.trim().split("\s+");
+
+                    var mk = uncheckedPreInstruction(tokens);
+                    if (mk instanceof ComptInstructionMk<PreInstruction> comptMk) {
+                        // Going to recreate a custom ComptInstructionMk that auto-validates itself
+                        class Impl implements ComptInstructionMk<Void> {
+                            @Override
+                            public Void computeInstruction(String targetSymbol, String baseSymbol, String operator, List<String> parameterSymbols) {
+                                var op = OPERATORS.get(scope.getOrDie(baseSymbol)).get(operator);
+                                if(op == null)
+                                    throw UNSUPPORTED_OPERATOR.error(operator, baseSymbol);
+                                var types = parameterSymbols.stream().map(scope::getOrDie).toList();
+                                if(! op.doesAccept(types))
+                                    throw UNAPPLICABLE_OPERATOR.error(operator, baseSymbol, Arrays.toString(types.stream().map(Class::getSimpleName).toArray()));
+                                return null;
+                            }
+                        } new Impl().makeInstruction(tokens);
+                    }
+                    return mk.makeInstruction(tokens);
+                }
+            } var checker = new InstructionChecker();
             paragraphs = IntStream.range(0, lines.size())
                     .dropWhile(i -> lines.get(i).startsWith("DECLARE"))
                     .filter(i -> !lines.get(i).startsWith("  "))

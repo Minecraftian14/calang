@@ -11,6 +11,7 @@ import java.util.stream.*;
 
 import static calang.rejections.Rejections.*;
 import static java.util.Collections.emptyList;
+import static java.util.Collections.singletonList;
 import static java.util.function.Predicate.not;
 
 public class Calang {
@@ -26,7 +27,7 @@ public class Calang {
         ));
         OPERATORS = new HashMap<>();
         {
-            addOperator(IntegerValue.class, "-", Operators.describes(IntegerValue.class, IntegerValue.class, IntegerValue.class));
+            addOperator(IntegerValue.class, "-", Operators.describes(IntegerValue.class, IntegerValue.class, singletonList(IntegerValue.class)));
             addOperator(IntegerValue.class, "+", Operators.describes(IntegerValue.class, IntegerValue.class, IntegerValue.class));
             addOperator(IntegerValue.class, "prec", Operators.describes(IntegerValue.class, IntegerValue.class, emptyList()));
             addOperator(IntegerValue.class, "succ", Operators.describes(IntegerValue.class, IntegerValue.class, emptyList()));

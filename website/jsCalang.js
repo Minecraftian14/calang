@@ -67,9 +67,9 @@ class IntegerValue extends TypedValue {
 
   static operatorTable = {
       "+": (v, args) => IntegerValue.of(v + args.map(IntegerValue.toInt).reduce((a,b) => a+b)),
-      "-": (v, args) => IntegerValue.of(v - args.map(IntegerValue.toInt).reduce((a,b) => a+b)),
-      "succ": (v, args) => IntegerValue.of(IntegerValue.toInt(v) + 1),
-      "prec": (v, args) => IntegerValue.of(IntegerValue.toInt(v) - 1),
+      "-": (v, args) => IntegerValue.of(v - IntegerValue.toInt(args[0])),
+      "succ": (v, args) => IntegerValue.of(v + 1),
+      "prec": (v, args) => IntegerValue.of(v - 1),
     };
 
   static toInt(any) {

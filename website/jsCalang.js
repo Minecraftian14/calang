@@ -105,7 +105,7 @@ class BooleanValue extends TypedValue {
     "AND": (v, args) =>     BooleanValue.of(TypedValue.reduceArgs(v, args, (a, b) => a && b)),
     "OR": (v, args) =>      BooleanValue.of(TypedValue.reduceArgs(v, args, (a, b) => a || b)),
     "XAND": (v, args) =>    BooleanValue.of(TypedValue.reduceArgs(v, args, (a, b) => !((a || b) && (!(a && b))))),
-    "IMPLIES": (v, args) => BooleanValue.of(!v || args[0])
+    "IMPLIES": (v, args) => BooleanValue.of(!v || args[0].getValue())
   };
 
   static newInstance() { return new BooleanValue(); }

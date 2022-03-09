@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Testing JsCalang</title>
+    <script src="../../website/jsCalang.js"></script>
+</head>
+<style>
+    body {
+        font-family: "Calibri", monospace;
+    }
+
+    .out {
+        width: 70%;
+        margin: auto;
+    }
+
+    .test {
+        border: 5px #606060 solid;
+        padding-left: 10%;
+        padding-right: 10%;
+    }
+
+    .testSuccessful .testFailed {
+        width: 100%;
+    }
+
+    .testSuccessful {
+        background-color: #bbd9bb;
+    }
+
+    .testFailed {
+        background-color: #d09090;
+    }
+
+    .k {
+        width: 100%;
+    }
+</style>
+<body>
+
+<div id="results">
+</div>
+
+<div id="out" class="out">
+</div>
+
+<script>
+    let testsPassed = 0;
+    let testsFailed = 0;
+
+    function append(text) {
+        document.getElementById('out').innerHTML += text;
+    }
+
+    function success(name, uo) {
+        testsPassed++;
+        document.getElementById('out').innerHTML += '' +
+            '<div class="testSuccessful">\n' +
+            '    <div class="test">\n' +
+            '       <div class="k"><b>Testing</b> ' + name + '</div>\n' +
+            '       <div class="k">' + JSON.stringify(uo) + '</div>\n' +
+            '       <div class="k"><b>Success</b></div>\n' +
+            '    </div>\n' +
+            '</div>';
+    }
+
+    function fail(name, uo, e, a) {
+        testsFailed++;
+        document.getElementById('out').innerHTML += '' +
+            '    <div class="testFailed">\n' +
+            '        <div class="test">\n' +
+            '            <div class="k"><b>Testing</b> ' + name + '</div>\n' +
+            '            <div class="k">' + JSON.stringify(uo) + '</div>\n' +
+            '            <div class="k"><b>FAILED</b>' + " Expected " + e + ":" + (typeof e) + " but received " + a + ":" + (typeof a) + '</div>\n' +
+            '        </div>\n' +
+            '    </div>';
+    }
+
+    function pln(ob) {
+        append(ob)
+        append("<br/>")
+        return ob
+    }
+
+    function assertIt(name, eo, getE, getA) {
+        const e = getE();
+        const a = getA();
+        if (e === a) success(name, eo);
+        else fail(name, eo, e, a);
+    }
+</script>
+
+<script>
+
+    function bof(bool) {
+        let $A = Calang['BooleanValue'].newInstance();
+        $A.setValue(bool);
+        return $A;
+    }
+
+    function bofa(bool) {
+        for (let i = 0; i < bool.length; i++)
+            bool[i] = bof(bool[i]);
+        return bool;
+    }
+
+    function testUnaryBooleanOperator() {
+        let tests = [['1', false], ['0', true]];
+        tests.forEach(test => assertIt("NEGATE TEST" , test, () => test[1], () => bof(test[0]).sendMessage("NEGATE", []).getValue()));
+    }
+
+    testUnaryBooleanOperator();
+
+    function testBinaryBooleanOperator() {
+        let tests = [];
+        tests = [['1', '1', true], ['1', '0', false], ['0', '1', false], ['0', '0', false]];
+        tests.forEach(test => assertIt("AND   TEST  " , test, () => test[2], () => bof(test[0]).sendMessage("AND", [bof(test[1])]).getValue()));
+        tests = [['1', '1', true], ['1', '0', true], ['0', '1', true], ['0', '0', false]];
+        tests.forEach(test => assertIt("OR    TEST  " , test, () => test[2], () => bof(test[0]).sendMessage("OR", [bof(test[1])]).getValue()));
+        tests = [['1', '1', false], ['1', '0', true], ['0', '1', true], ['0', '0', false]];
+        tests.forEach(test => assertIt("XOR   TEST  " , test, () => test[2], () => bof(test[0]).sendMessage("XOR", [bof(test[1])]).getValue()));
+        tests = [['1', '1', true], ['1', '0', false], ['0', '1', false], ['0', '0', true]];
+        tests.forEach(test => assertIt("XAND  TEST  " , test, () => test[2], () => bof(test[0]).sendMessage("XAND", [bof(test[1])]).getValue()));
+        tests = [['1', '1', true], ['1', '0', false], ['0', '1', true], ['0', '0', true]];
+        tests.forEach(test => assertIt("IMPLIES TEST" , test, () => test[2], () => bof(test[0]).sendMessage("IMPLIES", [bof(test[1])]).getValue()))
+    }
+
+    testBinaryBooleanOperator();
+
+    function testVariadicBooleanOperator() {
+        function generateTests(red) {
+            let _tests = [];
+            for (let i = 0; i < 2; i++) for (let j = 0; j < 2; j++) for (let k = 0; k < 2; k++) for (let l = 0; l < 2; l++)
+                _tests.push(['' + i, ['' + j, '' + k, '' + l], Boolean([Boolean(i), Boolean(j), Boolean(k), Boolean(l)].reduce(red))]);
+            return _tests;
+        }
+
+        let tests = [];
+        tests = generateTests((a, b) => a && b);
+        tests.forEach(test => assertIt("AND     TEST " , test, () => test[2], () => bof(test[0]).sendMessage("AND", bofa(test[1])).getValue()));
+        tests = generateTests((a, b) => a || b);
+        tests.forEach(test => assertIt("OR      TEST " , test, () => test[2], () => bof(test[0]).sendMessage("OR", bofa(test[1])).getValue()));
+        tests = generateTests((a, b) => a ^ b);
+        tests.forEach(test => assertIt("XOR     TEST " , test, () => test[2], () => bof(test[0]).sendMessage("XOR", bofa(test[1])).getValue()));
+        tests = generateTests((a, b) => !(a ^ b));
+        tests.forEach(test => assertIt("XAND    TEST " , test, () => test[2], () => bof(test[0]).sendMessage("XAND", bofa(test[1])).getValue()));
+    }
+
+    testVariadicBooleanOperator();
+
+
+</script>
+
+<script>
+
+    function iof(i) {
+        let $A = Calang['IntegerValue'].newInstance();
+        $A.setValue(i);
+        return $A;
+    }
+
+    function iofa(ik) {
+        for (let i = 0; i < ik.length; i++)
+            ik[i] = iof(ik[i]);
+        return ik;
+    }
+
+    function testUnaryIntegerOperator() {
+        let tests = [];
+        tests = [['1', 2], ['0', 1]];
+        tests.forEach(test => assertIt("SUCC TEST " , test, () => test[1], () => iof(test[0]).sendMessage("succ", []).getValue()));
+        tests = [['1', 0], ['0', -1]];
+        tests.forEach(test => assertIt("PREC TEST " , test, () => test[1], () => iof(test[0]).sendMessage("prec", []).getValue()));
+    }
+
+    testUnaryIntegerOperator();
+
+    function testVariadicIntegerOperator() {
+        function generateTests(red) {
+            let _tests = [];
+            for (let i = 0; i < 4; i++) {
+                let eif = [];
+                let ain = Math.floor(Math.random() * 100);
+                let sik = ain;
+                for (let j = 0; j < 5; j++) {
+                    let den = Math.floor(Math.random() * 100);
+                    sik = red(sik, den);
+                    eif.push(den);
+                }
+                _tests.push([ain, eif, sik])
+            }
+            return _tests;
+        }
+
+        let tests = [];
+        tests = generateTests((a, b) => a + b);
+        tests.forEach(test => assertIt("SUM TEST        " , test, () => test[2], () => iof(test[0]).sendMessage("+", iofa(test[1])).getValue()));
+        tests = generateTests((a, b) => a - b);
+        tests.forEach(test => assertIt("DIFFERENCE TEST " , test, () => test[2], () => iof(test[0]).sendMessage("-", iofa(test[1])).getValue()));
+    }
+
+    testVariadicIntegerOperator();
+
+
+</script>
+
+<script>
+    document.getElementById("results").innerHTML = "Among a total of " + (testsPassed + testsFailed) + " tests, " + testsFailed + " were failed.";
+</script>
+
+</body>
+</html>
